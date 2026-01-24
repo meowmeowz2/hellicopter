@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Subnautica 2D</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; }
+        canvas { display: block; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        .pointer-events-auto { pointer-events: auto; }
+        .stat-bar { height: 8px; border-radius: 4px; background: rgba(0,0,0,0.5); overflow: hidden; }
+        .stat-fill { height: 100%; transition: width 0.3s ease; }
+        .inventory-slot { width: 50px; height: 50px; background: rgba(20, 40, 60, 0.7); border: 2px solid rgba(0, 255, 255, 0.2); border-radius: 4px; display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; }
+        .inventory-slot.equipped { border-color: #0ff; background: rgba(0, 255, 255, 0.4); box-shadow: 0 0 10px rgba(0, 255, 255, 0.3); }
+        .equip-label { position: absolute; left: 60px; white-space: nowrap; font-size: 10px; color: rgba(0, 255, 255, 0.7); text-transform: uppercase; letter-spacing: 1px; pointer-events: none; }
+        .crafting-btn { background: rgba(0, 255, 255, 0.1); border: 1px solid rgba(0, 255, 255, 0.4); color: #0ff; transition: all 0.2s; text-align: left; }
+        .crafting-btn:hover:not(:disabled) { background: rgba(0, 255, 255, 0.3); }
+        .crafting-btn:disabled { opacity: 0.2; cursor: not-allowed; }
+        
+        #builder-menu { 
+            position: absolute; bottom: 80px; left: 1rem; 
+            background: rgba(10, 20, 30, 0.95); border: 1px solid #0ff; 
+            padding: 10px; border-radius: 8px; display: none;
+            max-height: 50vh; overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<div id="ui-layer" class="flex flex-col justify-between p-4 text-white">
+    <!-- Top Bar: Stats -->
+    <div class="flex flex-col gap-2 w-64">
+        <div>
+            <div class="flex justify-between text-xs mb-1"><span>HEALTH</span><span id="health-val">100</span></div>
+            <div class="stat-bar"><div id="health-bar" class="stat-fill bg-red-500" style="width: 100%"></div></div>
+        </div>
+        <div>
+            <div class="flex justify-between text-xs mb-1"><span>OXYGEN</span><span id="o2-val">45s</span></div>
+            <div class="stat-bar"><div id="o2-bar" class="stat-fill bg-blue-400" style="width: 100%"></div></div>
+        </div>
+    </div>
+
+    <!-- Left Side: Gear & Tools -->
+    <div class="absolute left-4 top-32 flex flex-col gap-4">
+        <div class="text-[10px] text-cyan-500/50 uppercase tracking-widest font-bold mb-1">Equipment</div>
+        <div id="equipment-panel" class="flex flex-col gap-3 pointer-events-auto"></div>
+    </div>
+
+    <!-- Habitat Builder Popup -->
+    <div id="builder-menu" class="pointer-events-auto w-48">
+        <div class="text-[10px] text-cyan-400 font-bold mb-2 uppercase">Build Menu</div>
+        <div id="build-options" class="flex flex-col gap-2"></div>
+    </div>
+
+    <!-- Bottom Left: Builder Tool Toggle -->
+    <div class="absolute bottom-4 left-4 pointer-events-auto">
+        <div id="builder-icon-container">
+            <div onclick="toggleBuilderMenu()" class="inventory-slot border-purple-500 bg-purple-900/40 hover:bg-purple-800/60" title="Habitat Builder">
+                <span style="color:#a0f; font-weight: bold;">HB</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Center Message -->
+    <div id="msg" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-cyan-300 font-bold text-xl opacity-0 transition-opacity pointer-events-none text-center"></div>
+
+    <!-- Bottom: Inventory & Depth -->
+    <div class="flex flex-col items-center gap-4">
+        <div id="depth-indicator" class="text-2xl font-mono text-cyan-400">DEPTH: 0m</div>
+        <div class="text-[10px] text-cyan-500/50 uppercase tracking-widest">Resources</div>
+        <div class="flex gap-2 pointer-events-auto" id="inventory"></div>
+    </div>
+
+    <!-- Right Side: Fabricator -->
+    <div class="absolute right-4 top-4 w-56 pointer-events-auto bg-slate-900/90 p-4 rounded-lg border border-cyan-500/30 max-h-[70vh] overflow-y-auto">
+        <h3 class="text-cyan-400 font-bold mb-3 border-b border-cyan-500/30 pb-1 flex justify-between items-center">
+            FABRICATOR
+            <span class="text-[10px] opacity-50">v1.7</span>
+        </h3>
+        <div id="crafting-list" class="flex flex-col gap-2 text-sm"></div>
+    </div>
+</div>
+
+<script>
+/**
+ * Subnautica 2D - Permanent Gear & Fixed Lighting
+ */
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const msgEl = document.getElementById('msg');
+const builderMenu = document.getElementById('builder-menu');
+
+const state = {
+    player: {
+        x: 0, y: -100, vx: 0, vy: 0, width: 15, height: 35, rotation: 0,
+        baseSpeed: 0.15, speed: 0.15, friction: 0.94, health: 100,
+        o2: 45, maxO2: 45, depth: 0, legPhase: 0, equipped: null,
+        isInside: false
+    },
+    camera: { x: 0, y: 0 },
+    mouse: { x: 0, y: 0, worldX: 0, worldY: 0 },
+    inventory: { 'Titanium': 100, 'Copper': 100, 'Quartz': 100 }, 
+    equipment: { tank: null, fins: null },
+    resources: [],
+    fish: [],
+    baseParts: [],
+    terrainPoints: [],
+    lastTime: 0,
+    keys: {},
+    worldSize: { width: 15000, height: 8000 },
+    activeBuilding: null,
+    items: {
+        'Titanium': { color: '#889', symbol: 'Ti', type: 'resource' },
+        'Copper': { color: '#b87333', symbol: 'Cu', type: 'resource' },
+        'Quartz': { color: '#eef', symbol: 'Qz', type: 'resource' },
+        'Standard Tank': { color: '#fb0', symbol: 'O2', type: 'gear', slot: 'tank', o2: 90 },
+        'High Capacity Tank': { color: '#f50', symbol: 'O2+', type: 'gear', slot: 'tank', o2: 180 },
+        'Ultra High Capacity Tank': { color: '#f00', symbol: 'O2!', type: 'gear', slot: 'tank', o2: 360 },
+        'Fins': { color: '#333', symbol: 'F', type: 'gear', slot: 'fins', speed: 0.22 },
+        'Ultra Glide Fins': { color: '#0ff', symbol: 'F+', type: 'gear', slot: 'fins', speed: 0.32 },
+        'Seaglide': { color: '#0f8', symbol: 'SG', type: 'tool', slot: 'tool' },
+        'Habitat Builder': { color: '#a0f', symbol: 'HB', type: 'tool', slot: 'tool' }
+    },
+    blueprints: [
+        { id: 'tank1', name: 'Standard Tank', cost: { 'Titanium': 2 }, crafted: false, effect: () => { state.equipment.tank = 'Standard Tank'; applyGearEffects(); } },
+        { id: 'tank2', name: 'High Capacity Tank', cost: { 'Titanium': 4, 'Quartz': 2 }, crafted: false, unlock: 'tank1', effect: () => { state.equipment.tank = 'High Capacity Tank'; applyGearEffects(); } },
+        { id: 'tank3', name: 'Ultra High Capacity Tank', cost: { 'Titanium': 10, 'Quartz': 5, 'Copper': 5 }, crafted: false, unlock: 'tank2', effect: () => { state.equipment.tank = 'Ultra High Capacity Tank'; applyGearEffects(); } },
+        { id: 'fins1', name: 'Fins', cost: { 'Titanium': 1, 'Copper': 1 }, crafted: false, effect: () => { state.equipment.fins = 'Fins'; applyGearEffects(); } },
+        { id: 'fins2', name: 'Ultra Glide Fins', cost: { 'Quartz': 5, 'Copper': 2 }, crafted: false, unlock: 'fins1', effect: () => { state.equipment.fins = 'Ultra Glide Fins'; applyGearEffects(); } },
+        { id: 'seaglide', name: 'Seaglide', cost: { 'Copper': 2, 'Titanium': 1, 'Quartz': 1 }, crafted: false, effect: () => { state.inventory['Seaglide'] = 1; updateInventoryUI(); } },
+    ],
+    habitatPieces: [
+        { name: 'Compartment', cost: { 'Titanium': 2 }, width: 120, height: 60, type: 'room' },
+        { name: 'L-Compartment', cost: { 'Titanium': 3 }, width: 90, height: 90, type: 'room' },
+        { name: 'T-Compartment', cost: { 'Titanium': 4 }, width: 140, height: 90, type: 'room' },
+        { name: 'Scanner Room', cost: { 'Titanium': 5, 'Copper': 2 }, width: 160, height: 160, type: 'room' },
+        { name: 'Moonpool', cost: { 'Titanium': 8, 'Copper': 4 }, width: 220, height: 100, type: 'room' },
+        { name: 'Observation Bubble', cost: { 'Quartz': 4, 'Titanium': 1 }, width: 100, height: 100, type: 'bubble' },
+        { name: 'Reinforced Window', cost: { 'Quartz': 2 }, width: 40, height: 30, type: 'window' },
+        { name: 'Foundation', cost: { 'Titanium': 4 }, width: 140, height: 20, type: 'structure' },
+        { name: 'Solar Panel', cost: { 'Quartz': 2, 'Copper': 1 }, width: 40, height: 15, type: 'solar' },
+        { name: 'Floodlight', cost: { 'Titanium': 1, 'Copper': 1 }, width: 12, height: 12, type: 'light' },
+        { name: 'Bio-Reactor', cost: { 'Titanium': 4, 'Copper': 2 }, width: 40, height: 60, type: 'internal' }
+    ]
+};
+
+function showMsg(text) {
+    msgEl.innerText = text;
+    msgEl.style.opacity = 1;
+    setTimeout(() => msgEl.style.opacity = 0, 2000);
+}
+
+function applyGearEffects() {
+    const p = state.player;
+    if (state.equipment.tank) {
+        p.maxO2 = state.items[state.equipment.tank].o2;
+    } else {
+        p.maxO2 = 45;
+    }
+    if (state.equipment.fins) {
+        p.baseSpeed = state.items[state.equipment.fins].speed;
+    } else {
+        p.baseSpeed = 0.15;
+    }
+    updateInventoryUI();
+}
+
+function init() {
+    resize();
+    for (let x = -state.worldSize.width / 2; x <= state.worldSize.width / 2; x += 60) {
+        let y = state.worldSize.height - 400 + Math.sin(x * 0.001) * 300 + Math.sin(x * 0.005) * 60;
+        state.terrainPoints.push({ x, y });
+    }
+    for(let i=0; i<800; i++) {
+        state.resources.push({
+            x: (Math.random() - 0.5) * state.worldSize.width,
+            y: Math.random() * (state.worldSize.height - 800) + 200,
+            type: ['Titanium', 'Copper', 'Quartz'][Math.floor(Math.random() * 3)],
+        });
+    }
+    for(let i=0; i<200; i++) {
+        state.fish.push({
+            x: (Math.random() - 0.5) * state.worldSize.width,
+            y: Math.random() * state.worldSize.height,
+            vx: (Math.random() - 0.5) * 2,
+            vy: (Math.random() - 0.5) * 1,
+            size: 4 + Math.random() * 8,
+            color: `hsl(${Math.random()*360}, 60%, 50%)`
+        });
+    }
+    renderCrafting();
+    renderBuildMenu();
+    updateInventoryUI();
+    window.requestAnimationFrame(gameLoop);
+}
+
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+window.addEventListener('resize', resize);
+window.addEventListener('keydown', e => state.keys[e.key.toLowerCase()] = true);
+window.addEventListener('keyup', e => state.keys[e.key.toLowerCase()] = false);
+window.addEventListener('mousemove', e => {
+    state.mouse.x = e.clientX;
+    state.mouse.y = e.clientY;
+    state.mouse.worldX = e.clientX + state.camera.x;
+    state.mouse.worldY = e.clientY + state.camera.y;
+});
+
+function toggleBuilderMenu() {
+    builderMenu.style.display = (builderMenu.style.display === 'block') ? 'none' : 'block';
+}
+
+function selectBuildPiece(piece) {
+    state.activeBuilding = piece;
+    builderMenu.style.display = 'none';
+    showMsg(`Placement Mode: ${piece.name}`);
+}
+
+function renderBuildMenu() {
+    const list = document.getElementById('build-options');
+    list.innerHTML = '';
+    state.habitatPieces.forEach(p => {
+        const btn = document.createElement('button');
+        btn.className = 'crafting-btn p-2 rounded text-[11px]';
+        let costStr = Object.entries(p.cost).map(([res, amt]) => `${amt}${state.items[res].symbol}`).join(' ');
+        btn.innerHTML = `<div class="font-bold">${p.name}</div><div class="opacity-70">${costStr}</div>`;
+        btn.onclick = () => selectBuildPiece(p);
+        list.appendChild(btn);
+    });
+}
+
+function toggleEquip(itemName) {
+    state.player.equipped = (state.player.equipped === itemName) ? null : itemName;
+    updateInventoryUI();
+}
+
+canvas.addEventListener('mousedown', (e) => {
+    if (state.activeBuilding) {
+        const piece = state.activeBuilding;
+        const canAfford = Object.keys(piece.cost).every(res => (state.inventory[res] || 0) >= piece.cost[res]);
+        
+        if (canAfford) {
+            Object.entries(piece.cost).forEach(([res, amt]) => state.inventory[res] -= amt);
+            state.baseParts.push({ 
+                x: state.mouse.worldX, 
+                y: state.mouse.worldY, 
+                name: piece.name,
+                width: piece.width,
+                height: piece.height,
+                type: piece.type
+            });
+            showMsg(`${piece.name} Constructed`);
+            state.activeBuilding = null;
+            updateInventoryUI();
+        } else {
+            showMsg("Insufficient Resources");
+        }
+    }
+});
+
+function update(dt) {
+    const p = state.player;
+    p.speed = p.baseSpeed;
+    if (p.equipped === 'Seaglide') p.speed *= 2.5;
+
+    let ax = 0, ay = 0;
+    if(state.keys['arrowup'] || state.keys['w']) ay -= p.speed;
+    if(state.keys['arrowdown'] || state.keys['s']) ay += p.speed;
+    if(state.keys['arrowleft'] || state.keys['a']) ax -= p.speed;
+    if(state.keys['arrowright'] || state.keys['d']) ax += p.speed;
+
+    p.vx += ax; p.vy += ay;
+    p.vx *= p.friction; p.vy *= p.friction;
+    p.x += p.vx; p.y += p.vy;
+
+    const halfWidth = state.worldSize.width / 2;
+    if (p.x < -halfWidth) { p.x = -halfWidth; p.vx = 0; }
+    if (p.x > halfWidth) { p.x = halfWidth; p.vx = 0; }
+
+    if (Math.abs(p.vx) > 0.1 || Math.abs(p.vy) > 0.1) {
+        p.legPhase += dt * (p.equipped === 'Seaglide' ? 0.025 : 0.01);
+        p.rotation = Math.atan2(p.vy, p.vx);
+    }
+
+    if (p.y < -500) p.y = -500;
+    if (p.y > state.worldSize.height) p.y = state.worldSize.height;
+
+    // Interior Logic
+    let insideAny = false;
+    state.baseParts.forEach(bp => {
+        if (bp.type === 'room' || bp.type === 'bubble') {
+            const dx = Math.abs(p.x - bp.x);
+            const dy = Math.abs(p.y - bp.y);
+            if (dx < bp.width/2 && dy < bp.height/2) insideAny = true;
+        }
+    });
+    
+    // Check tunnels for interior status
+    if (!insideAny) {
+        const rooms = state.baseParts.filter(p => p.type === 'room' || p.type === 'bubble');
+        for (let i = 0; i < rooms.length; i++) {
+            for (let j = i + 1; j < rooms.length; j++) {
+                const r1 = rooms[i];
+                const r2 = rooms[j];
+                const dist = Math.hypot(r1.x - r2.x, r1.y - r2.y);
+                if (dist < 280) {
+                    const d = distToSegment({x: p.x, y: p.y}, r1, r2);
+                    if (d < 40) {
+                        insideAny = true;
+                        break;
+                    }
+                }
+            }
+            if (insideAny) break;
+        }
+    }
+    
+    p.isInside = insideAny;
+    p.depth = Math.max(0, Math.floor(p.y / 10));
+
+    if (p.y < 0 || p.isInside) {
+        p.o2 = Math.min(p.maxO2, p.o2 + dt/10);
+    } else {
+        p.o2 -= dt/1000;
+    }
+
+    if (p.o2 <= 0) {
+        p.o2 = 0;
+        p.health -= dt/100;
+        if(p.health <= 0) {
+            p.health = 100; p.o2 = p.maxO2; p.x = 0; p.y = -100;
+            showMsg("EMERGENCY RESUPPLY INITIATED");
+        }
+    }
+
+    state.resources = state.resources.filter(r => {
+        if(!p.isInside && Math.hypot(p.x - r.x, p.y - r.y) < 35) {
+            state.inventory[r.type] = (state.inventory[r.type] || 0) + 1;
+            updateInventoryUI();
+            return false;
+        }
+        return true;
+    });
+
+    state.fish.forEach(f => {
+        f.x += f.vx; f.y += f.vy;
+        if(Math.random() < 0.01) { f.vx += (Math.random()-0.5); f.vy += (Math.random()-0.5); }
+        if(f.x < -halfWidth || f.x > halfWidth) f.vx *= -1;
+        if(f.y < 0 || f.y > state.worldSize.height) f.vy *= -1;
+    });
+
+    state.camera.x += (p.x - canvas.width/2 - state.camera.x) * 0.1;
+    state.camera.y += (p.y - canvas.height/2 - state.camera.y) * 0.1;
+    updateUI();
+}
+
+function distToSegment(p, v, w) {
+    const l2 = Math.pow(v.x - w.x, 2) + Math.pow(v.y - w.y, 2);
+    if (l2 == 0) return Math.hypot(p.x - v.x, p.y - v.y);
+    let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
+}
+
+function updateUI() {
+    document.getElementById('health-bar').style.width = state.player.health + '%';
+    document.getElementById('health-val').innerText = Math.ceil(state.player.health);
+    document.getElementById('o2-bar').style.width = (state.player.o2 / state.player.maxO2 * 100) + '%';
+    document.getElementById('o2-val').innerText = Math.ceil(state.player.o2) + 's';
+    document.getElementById('depth-indicator').innerText = state.player.isInside ? "HABITAT" : `DEPTH: ${state.player.depth}m`;
+}
+
+function updateInventoryUI() {
+    const invEl = document.getElementById('inventory');
+    invEl.innerHTML = '';
+    Object.keys(state.inventory).forEach(key => {
+        if(state.items[key] && state.items[key].type === 'resource' && state.inventory[key] > 0) {
+            const slot = document.createElement('div');
+            slot.className = 'inventory-slot';
+            slot.innerHTML = `<span style="color:${state.items[key].color}">${state.items[key].symbol}</span>
+                              <span class="absolute bottom-0 right-1 text-[10px] font-bold">${state.inventory[key]}</span>`;
+            invEl.appendChild(slot);
+        }
+    });
+
+    const equipEl = document.getElementById('equipment-panel');
+    equipEl.innerHTML = '';
+    
+    // Tank Slot
+    if (state.equipment.tank) {
+        const tank = state.items[state.equipment.tank];
+        const slot = document.createElement('div');
+        slot.className = 'inventory-slot equipped';
+        slot.innerHTML = `<span style="color:${tank.color}">${tank.symbol}</span><div class="equip-label">${state.equipment.tank}</div>`;
+        equipEl.appendChild(slot);
+    } else {
+        equipEl.innerHTML += '<div class="inventory-slot opacity-20"><span class="text-[10px]">NO TANK</span></div>';
+    }
+
+    // Fins Slot
+    if (state.equipment.fins) {
+        const fins = state.items[state.equipment.fins];
+        const slot = document.createElement('div');
+        slot.className = 'inventory-slot equipped';
+        slot.innerHTML = `<span style="color:${fins.color}">${fins.symbol}</span><div class="equip-label">${state.equipment.fins}</div>`;
+        equipEl.appendChild(slot);
+    } else {
+        equipEl.innerHTML += '<div class="inventory-slot opacity-20"><span class="text-[10px]">NO FINS</span></div>';
+    }
+
+    // Seaglide Tool Slot
+    if (state.inventory['Seaglide']) {
+        const tool = state.items['Seaglide'];
+        const slot = document.createElement('div');
+        slot.className = `inventory-slot ${state.player.equipped === 'Seaglide' ? 'equipped' : ''}`;
+        slot.innerHTML = `<span style="color:${tool.color}">${tool.symbol}</span><div class="equip-label">SEAGLIDE</div>`;
+        slot.onclick = () => toggleEquip('Seaglide');
+        equipEl.appendChild(slot);
+    }
+}
+
+function renderCrafting() {
+    const list = document.getElementById('crafting-list');
+    list.innerHTML = '';
+    state.blueprints.forEach(bp => {
+        if (bp.crafted) return;
+        if (bp.unlock) {
+            const prev = state.blueprints.find(b => b.id === bp.unlock);
+            if (!prev || !prev.crafted) return;
+        }
+
+        const canCraft = Object.keys(bp.cost).every(res => (state.inventory[res] || 0) >= bp.cost[res]);
+        const btn = document.createElement('button');
+        btn.className = `crafting-btn p-2 rounded flex flex-col`;
+        btn.disabled = !canCraft;
+        btn.innerHTML = `<div class="font-bold">${bp.name}</div><div class="text-[9px] opacity-70">${Object.entries(bp.cost).map(([r,a])=>a+r[0]).join(' ')}</div>`;
+        btn.onclick = () => {
+            Object.entries(bp.cost).forEach(([res, amt]) => state.inventory[res] -= amt);
+            bp.crafted = true; bp.effect();
+            updateInventoryUI(); renderCrafting();
+            showMsg(`Crafted: ${bp.name}`);
+        };
+        list.appendChild(btn);
+    });
+}
+
+function draw() {
+    ctx.clearRect(0,0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(-state.camera.x, -state.camera.y);
+
+    const isInside = state.player.isInside;
+
+    // 1. Ocean / Terrain (Only if not inside)
+    if (!isInside) {
+        const seaGrad = ctx.createLinearGradient(0, 0, 0, state.worldSize.height);
+        seaGrad.addColorStop(0, '#0055aa');
+        seaGrad.addColorStop(0.5, '#001133');
+        seaGrad.addColorStop(1, '#000408');
+        ctx.fillStyle = seaGrad;
+        ctx.fillRect(-state.worldSize.width/2, 0, state.worldSize.width, state.worldSize.height);
+
+        ctx.fillStyle = '#1a1a1a';
+        ctx.beginPath();
+        ctx.moveTo(state.terrainPoints[0].x, state.worldSize.height);
+        state.terrainPoints.forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.lineTo(state.terrainPoints[state.terrainPoints.length-1].x, state.worldSize.height);
+        ctx.fill();
+
+        state.fish.forEach(f => {
+            ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(Math.atan2(f.vy, f.vx));
+            ctx.fillStyle = f.color; ctx.beginPath(); ctx.ellipse(0, 0, f.size, f.size/2, 0, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+        });
+
+        state.resources.forEach(r => {
+            ctx.fillStyle = state.items[r.type].color;
+            ctx.beginPath(); ctx.arc(r.x, r.y, 6, 0, Math.PI*2); ctx.fill();
+        });
+    } else {
+        ctx.fillStyle = '#050a10';
+        ctx.fillRect(state.camera.x, state.camera.y, canvas.width, canvas.height);
+    }
+
+    // 2. Base Components
+    ctx.lineWidth = 55; ctx.strokeStyle = '#2d333d'; ctx.lineCap = 'round';
+    const rooms = state.baseParts.filter(p => p.type === 'room' || p.type === 'bubble');
+    rooms.forEach((p1, i) => {
+        rooms.forEach((p2, j) => {
+            if (i >= j) return;
+            const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+            if (dist < 280) {
+                ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+                ctx.lineWidth = 42; ctx.strokeStyle = '#1e242e'; ctx.stroke();
+                ctx.lineWidth = 55; ctx.strokeStyle = '#2d333d';
+            }
+        });
+    });
+
+    state.baseParts.forEach(bp => {
+        ctx.lineWidth = 3; ctx.strokeStyle = '#0ff';
+        if (bp.type === 'room') {
+            ctx.fillStyle = '#1e242e';
+            ctx.beginPath(); ctx.roundRect(bp.x - bp.width/2, bp.y - bp.height/2, bp.width, bp.height, 8); ctx.fill(); ctx.stroke();
+            if (bp.name === 'Scanner Room') {
+                ctx.fillStyle = '#0ff2'; ctx.beginPath(); ctx.arc(bp.x, bp.y, 40, 0, Math.PI*2); ctx.fill();
+            }
+        } else if (bp.type === 'bubble') {
+            ctx.fillStyle = 'rgba(20, 60, 100, 0.6)';
+            ctx.beginPath(); ctx.arc(bp.x, bp.y, bp.width/2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        } else if (bp.type === 'structure') {
+            ctx.fillStyle = '#333'; ctx.strokeStyle = '#555';
+            ctx.beginPath(); ctx.roundRect(bp.x - bp.width/2, bp.y - bp.height/2, bp.width, bp.height, 2); ctx.fill(); ctx.stroke();
+        } else if (bp.type === 'solar') {
+            ctx.fillStyle = '#111'; ctx.strokeStyle = '#444';
+            ctx.beginPath(); ctx.roundRect(bp.x - bp.width/2, bp.y - bp.height/2, bp.width, bp.height, 2); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = 'rgba(0, 200, 255, 0.4)';
+            ctx.fillRect(bp.x - bp.width/2 + 2, bp.y - bp.height/2 + 2, bp.width - 4, bp.height - 4);
+        } else if (bp.type === 'light') {
+            ctx.fillStyle = '#666'; ctx.beginPath(); ctx.arc(bp.x, bp.y, 6, 0, Math.PI*2); ctx.fill();
+        } else if (bp.type === 'internal') {
+            ctx.fillStyle = '#0f5'; ctx.strokeStyle = '#0a3';
+            ctx.beginPath(); ctx.roundRect(bp.x - bp.width/2, bp.y - bp.height/2, bp.width, bp.height, 10); ctx.fill(); ctx.stroke();
+        }
+    });
+
+    // 3. Windows
+    state.baseParts.forEach(bp => {
+        if (bp.type === 'window') {
+            ctx.save(); ctx.beginPath(); ctx.roundRect(bp.x - bp.width/2, bp.y - bp.height/2, bp.width, bp.height, 4); ctx.clip();
+            const seaGrad = ctx.createLinearGradient(0, 0, 0, state.worldSize.height);
+            seaGrad.addColorStop(0, '#0055aa'); seaGrad.addColorStop(1, '#000408');
+            ctx.fillStyle = seaGrad; ctx.fillRect(bp.x - bp.width/2, bp.y - bp.height/2, bp.width, bp.height);
+            ctx.restore();
+            ctx.strokeStyle = '#0ff'; ctx.lineWidth = 2; ctx.stroke();
+        }
+    });
+
+    // 4. Ghost Building
+    if (state.activeBuilding) {
+        ctx.save(); ctx.globalAlpha = 0.4; ctx.fillStyle = '#0f0';
+        if (state.activeBuilding.type === 'bubble') {
+            ctx.beginPath(); ctx.arc(state.mouse.worldX, state.mouse.worldY, state.activeBuilding.width/2, 0, Math.PI*2); ctx.fill();
+        } else {
+            ctx.beginPath(); ctx.roundRect(state.mouse.worldX - state.activeBuilding.width/2, state.mouse.worldY - state.activeBuilding.height/2, state.activeBuilding.width, state.activeBuilding.height, 5); ctx.fill();
+        }
+        ctx.restore();
+    }
+
+    // 5. Diver
+    ctx.save();
+    ctx.translate(state.player.x, state.player.y);
+    ctx.rotate(state.player.rotation);
+    const legWave = Math.sin(state.player.legPhase) * 12;
+    ctx.fillStyle = '#111';
+    ctx.fillRect(-15, -6 + legWave/2, 10, 4);
+    ctx.fillRect(-15, 2 - legWave/2, 10, 4);
+    ctx.fillStyle = '#222';
+    ctx.beginPath(); ctx.roundRect(-8, -8, 20, 16, 4); ctx.fill();
+    
+    // Tank logic
+    const tankName = state.equipment.tank;
+    ctx.fillStyle = tankName === 'Ultra High Capacity Tank' ? '#f00' : (tankName === 'High Capacity Tank' ? '#f50' : (tankName ? '#fb0' : '#444'));
+    ctx.beginPath(); ctx.roundRect(-10, -6, 12, 12, 2); ctx.fill();
+    
+    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(14, 0, 7, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#0ff'; ctx.beginPath(); ctx.arc(16, 0, 4, -Math.PI/2, Math.PI/2); ctx.fill();
+    
+    if (state.player.equipped === 'Seaglide') {
+        ctx.fillStyle = '#0f8'; ctx.fillRect(16, -6, 15, 12);
+        ctx.fillStyle = '#4fa'; ctx.fillRect(28, -2, 5, 4);
+    }
+    ctx.restore();
+
+    // 6. Darkness Filter
+    ctx.restore(); 
+    if (!isInside) {
+        const depthAlpha = Math.min(0.9, state.player.depth / 550);
+        
+        // Draw darkness overlay
+        ctx.save();
+        ctx.fillStyle = `rgba(0,0,0,${depthAlpha})`;
+        ctx.fillRect(0,0, canvas.width, canvas.height);
+        
+        // Cutout lights
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.translate(-state.camera.x, -state.camera.y);
+        
+        // Seaglide Light Cutout
+        if (state.player.equipped === 'Seaglide') {
+            const sx = state.player.x;
+            const sy = state.player.y;
+            const grad = ctx.createRadialGradient(sx, sy, 20, sx, sy, 400);
+            grad.addColorStop(0, 'rgba(255,255,255,1)');
+            grad.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.moveTo(sx, sy);
+            ctx.arc(sx, sy, 500, state.player.rotation - 0.45, state.player.rotation + 0.45);
+            ctx.fill();
+        }
+
+        // Base Floodlight Cutout
+        state.baseParts.forEach(bp => {
+            if (bp.type === 'light') {
+                const grad = ctx.createRadialGradient(bp.x, bp.y, 10, bp.x, bp.y, 250);
+                grad.addColorStop(0, 'rgba(255,255,255,1)');
+                grad.addColorStop(1, 'rgba(255,255,255,0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath(); ctx.arc(bp.x, bp.y, 250, 0, Math.PI*2); ctx.fill();
+            }
+        });
+        ctx.restore();
+
+        // Screen-mode Highlights (The "Color" of the light)
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.translate(-state.camera.x, -state.camera.y);
+        
+        if (state.player.equipped === 'Seaglide') {
+            const sx = state.player.x;
+            const sy = state.player.y;
+            const gradHighlight = ctx.createRadialGradient(sx, sy, 50, sx, sy, 450);
+            gradHighlight.addColorStop(0, 'rgba(200, 255, 255, 0.3)');
+            gradHighlight.addColorStop(1, 'rgba(200, 255, 255, 0)');
+            ctx.fillStyle = gradHighlight;
+            ctx.beginPath();
+            ctx.moveTo(sx, sy);
+            ctx.arc(sx, sy, 500, state.player.rotation - 0.5, state.player.rotation + 0.5);
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+    
+    // 7. Small Visual Glows (Bulbs)
+    ctx.save();
+    ctx.translate(-state.camera.x, -state.camera.y);
+    state.baseParts.forEach(bp => {
+        if (bp.type === 'light') {
+            ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.arc(bp.x, bp.y, 5, 0, Math.PI*2); ctx.fill();
+            const glow = ctx.createRadialGradient(bp.x, bp.y, 5, bp.x, bp.y, 40);
+            glow.addColorStop(0, 'rgba(255,255,200,0.5)');
+            glow.addColorStop(1, 'transparent');
+            ctx.fillStyle = glow;
+            ctx.beginPath(); ctx.arc(bp.x, bp.y, 40, 0, Math.PI*2); ctx.fill();
+        }
+    });
+    ctx.restore();
+}
+
+function gameLoop(timestamp) {
+    const dt = timestamp - state.lastTime;
+    state.lastTime = timestamp;
+    if(dt < 100) { update(dt); draw(); }
+    window.requestAnimationFrame(gameLoop);
+}
+
+window.onload = init;
+</script>
+</body>
+</html>
