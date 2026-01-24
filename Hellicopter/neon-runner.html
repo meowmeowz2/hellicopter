@@ -85,6 +85,28 @@
         text-shadow: 0 0 10px #00f2ff;
       }
 
+      #playground-ui {
+        position: absolute;
+        top: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: none;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 10px 20px;
+        border-radius: 10px;
+        border: 1px solid #bd00ff;
+        text-align: center;
+        z-index: 15;
+        pointer-events: auto;
+      }
+
+      .pg-mode-indicator {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 5px;
+        color: #bd00ff;
+      }
+
       #flight-status {
         font-size: 14px;
         color: #bd00ff;
@@ -207,6 +229,17 @@
         display: none;
       }
 
+      #sim-selector {
+        background: #000;
+        color: #bd00ff;
+        border: 1px solid #bd00ff;
+        padding: 5px;
+        font-family: 'Orbitron', sans-serif;
+        font-size: 12px;
+        margin-top: 5px;
+        cursor: pointer;
+      }
+
       @keyframes pulse {
         from { opacity: 0.4; transform: scale(0.95); }
         to { opacity: 1; transform: scale(1.05); }
@@ -229,6 +262,20 @@
             <div class="bar-label">GRAPPLE</div>
             <div class="cooldown-container"><div id="grapple-bar"></div></div>
           </div>
+        </div>
+      </div>
+
+      <!-- Playground UI -->
+      <div id="playground-ui">
+        <div id="pg-status-text" class="pg-mode-indicator">MODE: EDITING</div>
+        <div style="font-size: 10px; color: #aaa;">
+            Simulator: 
+            <select id="sim-selector" onchange="updateSimDifficulty(this.value)">
+                <option value="normal">Standard</option>
+                <option value="easy">Easy</option>
+                <option value="hard">Hard</option>
+                <option value="master">Master</option>
+            </select>
         </div>
       </div>
 
@@ -294,6 +341,8 @@
       const hintText = document.getElementById('hint-text');
       const flightStatus = document.getElementById('flight-status');
       const flightToggleText = document.getElementById('flight-toggle-text');
+      const pgUI = document.getElementById('playground-ui');
+      const pgStatusText = document.getElementById('pg-status-text');
 
       // --- PERSISTENCE ---
       const highscores = {
@@ -323,10 +372,13 @@
 
       // --- GAME SETTINGS ---
       let difficulty = 'normal';
+      let simDifficulty = 'normal'; // Used for physics in Playground Play Mode
+      let playgroundMode = 'edit'; // 'edit' or 'play'
+
       const CONFIG = {
-        gravity: { easy: 0.35, normal: 0.45, hard: 0.65, master: 0.85, playground: 0.45 },
+        gravity: { easy: 0.35, normal: 0.45, hard: 0.65, master: 0.85 },
         wallSlideSpeed: 1.2,
-        jumpForce: { easy: -11.5, normal: -10.5, hard: -10.5, master: -12.0, playground: -10.5 },
+        jumpForce: { easy: -11.5, normal: -10.5, hard: -10.5, master: -12.0 },
         blinkDistance: 120,
         moveAcceleration: 1.1,
         friction: 0.88,
@@ -341,10 +393,10 @@
           grapple: '#bd00ff',
           blink: '#ffff00',
         },
-        maxJumps: { easy: 3, normal: 2, hard: 2, master: 2, playground: Infinity },
+        maxJumps: { easy: 3, normal: 2, hard: 2, master: 2 },
         dashForce: 24,
         dashDuration: 10,
-        dashCooldown: { easy: 25, normal: 45, hard: 60, master: 50, playground: 0 },
+        dashCooldown: { easy: 25, normal: 45, hard: 60, master: 50 },
         grappleCooldown: 600,
         grappleRange: 650,
         grapplePropelForce: 1.45,
@@ -386,14 +438,37 @@
       window.addEventListener('keydown', (e) => {
           keys[e.code] = true;
           if (difficulty === 'playground' && gameState === 'playing') {
+              // Fly toggle
               if (e.code === 'KeyF') {
                   isFlying = !isFlying;
                   flightToggleText.innerText = isFlying ? 'ON' : 'OFF';
                   shockwaves.push(new Shockwave(player.x + player.size/2, player.y + player.size/2, CONFIG.colors.playground));
               }
+              // Clear All
               if (e.code === 'KeyC') {
                   platforms = [];
                   shockwaves.push(new Shockwave(player.x + player.size/2, player.y + player.size/2, '#ff0000'));
+              }
+              // Reset Position
+              if (e.code === 'KeyR') {
+                  player.reset();
+                  shockwaves.push(new Shockwave(player.x + player.size/2, player.y + player.size/2, '#00f2ff'));
+              }
+              // Play Mode Toggle
+              if (e.code === 'KeyP') {
+                  playgroundMode = playgroundMode === 'edit' ? 'play' : 'edit';
+                  if (playgroundMode === 'play') {
+                      isFlying = false;
+                      pgStatusText.innerText = `MODE: TESTING (${simDifficulty.toUpperCase()})`;
+                      pgStatusText.style.color = CONFIG.colors[simDifficulty];
+                      shockwaves.push(new Shockwave(player.x + player.size/2, player.y + player.size/2, CONFIG.colors[simDifficulty]));
+                  } else {
+                      isFlying = true;
+                      pgStatusText.innerText = `MODE: EDITING`;
+                      pgStatusText.style.color = '#bd00ff';
+                      shockwaves.push(new Shockwave(player.x + player.size/2, player.y + player.size/2, '#bd00ff'));
+                  }
+                  flightToggleText.innerText = isFlying ? 'ON' : 'OFF';
               }
           }
       });
@@ -403,7 +478,7 @@
         mouse.x = e.clientX;
         mouse.y = e.clientY;
         
-        if (dragStart && difficulty === 'playground') {
+        if (dragStart && difficulty === 'playground' && playgroundMode === 'edit') {
            const currentX = mouse.x + scrollOffsetX;
            const currentY = mouse.y + scrollOffsetY;
            currentDragBox = {
@@ -419,7 +494,7 @@
         const worldX = mouse.x + scrollOffsetX;
         const worldY = mouse.y + scrollOffsetY;
 
-        if (difficulty === 'playground' && gameState === 'playing') {
+        if (difficulty === 'playground' && gameState === 'playing' && playgroundMode === 'edit') {
             if (e.button === 0) { // Left Click - Start Resize/Place
                 dragStart = { x: worldX, y: worldY };
             } else if (e.button === 2) { // Right Click - Delete
@@ -436,7 +511,7 @@
       });
 
       window.addEventListener('mouseup', (e) => {
-        if (dragStart && difficulty === 'playground' && currentDragBox) {
+        if (dragStart && difficulty === 'playground' && currentDragBox && playgroundMode === 'edit') {
             if (currentDragBox.w > 10 && currentDragBox.h > 10) {
                 platforms.push(new Platform(currentDragBox.x, currentDragBox.y, currentDragBox.w, currentDragBox.h));
                 shockwaves.push(new Shockwave(currentDragBox.x + currentDragBox.w/2, currentDragBox.y + currentDragBox.h/2, CONFIG.colors.playground));
@@ -448,6 +523,14 @@
       });
 
       window.addEventListener('contextmenu', (e) => e.preventDefault());
+
+      window.updateSimDifficulty = function(val) {
+        simDifficulty = val;
+        if (playgroundMode === 'play') {
+            pgStatusText.innerText = `MODE: TESTING (${simDifficulty.toUpperCase()})`;
+            pgStatusText.style.color = CONFIG.colors[simDifficulty];
+        }
+      };
 
       function fillRoundedRect(x, y, w, h, r) {
         ctx.beginPath();
@@ -514,7 +597,8 @@
           this.vy = 0;
           this.grounded = false;
           this.onWall = false;
-          this.jumpsLeft = CONFIG.maxJumps[difficulty];
+          const currentDiff = difficulty === 'playground' ? simDifficulty : difficulty;
+          this.jumpsLeft = CONFIG.maxJumps[currentDiff];
           this.facingRight = true;
           this.dashTimer = 0;
           this.dashCooldownTimer = 0;
@@ -526,13 +610,16 @@
           this.blinkKeyWasDown = false;
         }
         createEffect(color, amount = 15) {
-          screenShake = difficulty === 'master' ? 30 : difficulty === 'hard' ? 20 : 12;
+          const currentDiff = difficulty === 'playground' ? simDifficulty : difficulty;
+          screenShake = currentDiff === 'master' ? 30 : currentDiff === 'hard' ? 20 : 12;
           shockwaves.push(new Shockwave(this.x + this.size / 2, this.y + this.size / 2, color));
           for (let i = 0; i < amount; i++) {
             particles.push(new Particle(this.x + this.size / 2, this.y + this.size / 2, (Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15, color));
           }
         }
         update() {
+          const currentDiff = difficulty === 'playground' ? simDifficulty : difficulty;
+          
           if (this.dashTimer > 0) {
             this.dashTimer--;
             if (!isFlying) this.vy = 0;
@@ -540,15 +627,14 @@
           if (this.dashCooldownTimer > 0) this.dashCooldownTimer--;
           if (this.grappleCooldownTimer > 0) this.grappleCooldownTimer--;
 
-          if (difficulty !== 'playground') {
-              const dashPercent = 1 - this.dashCooldownTimer / CONFIG.dashCooldown[difficulty];
-              dashBarEl.style.width = `${Math.max(0, dashPercent * 100)}%`;
-              dashBarEl.style.backgroundColor = dashPercent >= 1 ? CONFIG.colors[difficulty] : '#444';
+          // UI Bars
+          const dashPercent = 1 - this.dashCooldownTimer / CONFIG.dashCooldown[currentDiff];
+          dashBarEl.style.width = `${Math.max(0, dashPercent * 100)}%`;
+          dashBarEl.style.backgroundColor = dashPercent >= 1 ? CONFIG.colors[currentDiff] : '#444';
 
-              const grapplePercent = 1 - this.grappleCooldownTimer / CONFIG.grappleCooldown;
-              grappleBarEl.style.width = `${Math.max(0, grapplePercent * 100)}%`;
-              grappleBarEl.style.backgroundColor = grapplePercent >= 1 ? CONFIG.colors.grapple : '#444';
-          }
+          const grapplePercent = 1 - this.grappleCooldownTimer / CONFIG.grappleCooldown;
+          grappleBarEl.style.width = `${Math.max(0, grapplePercent * 100)}%`;
+          grappleBarEl.style.backgroundColor = grapplePercent >= 1 ? CONFIG.colors.grapple : '#444';
 
           const grapplePressed = keys['KeyE'];
           if (grapplePressed && (this.grappleCooldownTimer <= 0 || difficulty === 'playground') && !this.isGrappling) {
@@ -564,8 +650,10 @@
             if (nearest) {
               this.isGrappling = true;
               this.grappleTarget = nearest;
-              if (difficulty !== 'playground') this.grappleCooldownTimer = CONFIG.grappleCooldown;
-              this.jumpsLeft = CONFIG.maxJumps[difficulty];
+              if (difficulty !== 'playground' || playgroundMode === 'play') {
+                this.grappleCooldownTimer = CONFIG.grappleCooldown;
+              }
+              this.jumpsLeft = CONFIG.maxJumps[currentDiff];
               shockwaves.push(new Shockwave(this.x + this.size / 2, this.y + this.size / 2, CONFIG.colors.grapple));
               screenShake = 10;
             }
@@ -606,7 +694,7 @@
                 this.createEffect(CONFIG.colors.blink, 20);
                 const bDir = this.vx >= 0 ? 1 : -1;
                 this.x += CONFIG.blinkDistance * bDir;
-                this.dashCooldownTimer = CONFIG.dashCooldown[difficulty];
+                this.dashCooldownTimer = CONFIG.dashCooldown[currentDiff];
                 this.createEffect(CONFIG.colors.blink, 10);
                 screenShake = 5;
               }
@@ -616,33 +704,33 @@
             if (keys['ArrowUp'] || keys['KeyW'] || keys['Space']) {
               if (!this.jumpKeyPressed) {
                 if (this.grounded || this.onWall) {
-                  this.vy = CONFIG.jumpForce[difficulty];
+                  this.vy = CONFIG.jumpForce[currentDiff];
                   this.grounded = false; this.onWall = false;
-                  this.jumpsLeft = CONFIG.maxJumps[difficulty] - 1;
+                  this.jumpsLeft = CONFIG.maxJumps[currentDiff] - 1;
                 } else if (this.jumpsLeft > 0 && !isFlying) {
-                  this.vy = CONFIG.jumpForce[difficulty] * 0.95;
+                  this.vy = CONFIG.jumpForce[currentDiff] * 0.95;
                   this.jumpsLeft--;
-                  shockwaves.push(new Shockwave(this.x + this.size / 2, this.y + this.size, CONFIG.colors[difficulty]));
+                  shockwaves.push(new Shockwave(this.x + this.size / 2, this.y + this.size, CONFIG.colors[currentDiff]));
                 }
                 if (this.isGrappling) { this.isGrappling = false; this.grappleTarget = null; }
               }
               this.jumpKeyPressed = true;
             } else this.jumpKeyPressed = false;
 
-            if ((keys['ShiftLeft'] || keys['KeyL']) && this.canDash && (this.dashCooldownTimer <= 0 || difficulty === 'playground')) {
+            if ((keys['ShiftLeft'] || keys['KeyL']) && this.canDash && (this.dashCooldownTimer <= 0 || (difficulty === 'playground' && playgroundMode === 'edit'))) {
               this.dashTimer = CONFIG.dashDuration;
-              this.dashCooldownTimer = CONFIG.dashCooldown[difficulty];
+              this.dashCooldownTimer = CONFIG.dashCooldown[currentDiff];
               this.vx = this.facingRight ? CONFIG.dashForce : -CONFIG.dashForce;
               if (!isFlying) this.vy = 0;
               this.canDash = false;
-              this.jumpsLeft = CONFIG.maxJumps[difficulty];
+              this.jumpsLeft = CONFIG.maxJumps[currentDiff];
               this.isGrappling = false; this.grappleTarget = null;
               this.createEffect(CONFIG.colors.dash);
             }
 
             if (!this.isGrappling) {
               if (this.onWall && this.vy > 0) this.vy = CONFIG.wallSlideSpeed;
-              else if (!isFlying) this.vy += CONFIG.gravity[difficulty];
+              else if (!isFlying) this.vy += CONFIG.gravity[currentDiff];
               
               this.vx *= CONFIG.friction;
               if (isFlying) this.vy *= CONFIG.friction;
@@ -655,12 +743,14 @@
           if (this.x < 0) this.x = 0;
           if (this.y > scrollOffsetY + canvasHeight + CONFIG.deathZoneBuffer && difficulty !== 'playground') endGame();
 
-          const trailColor = this.dashTimer > 0 ? CONFIG.colors.dash : CONFIG.colors[difficulty];
+          const trailColor = this.dashTimer > 0 ? CONFIG.colors.dash : CONFIG.colors[currentDiff];
           this.trail.unshift({ x: this.x, y: this.y, color: trailColor });
           if (this.trail.length > CONFIG.trailLength) this.trail.pop();
           this.grounded = false; this.onWall = false;
         }
         draw() {
+          const currentDiff = difficulty === 'playground' ? simDifficulty : difficulty;
+          
           if (this.isGrappling && this.grappleTarget) {
             ctx.beginPath();
             ctx.moveTo(this.x + this.size / 2 - scrollOffsetX, this.y + this.size / 2 - scrollOffsetY);
@@ -679,7 +769,7 @@
           });
 
           ctx.globalAlpha = 1.0;
-          const mainColor = this.dashTimer > 0 ? CONFIG.colors.dash : CONFIG.colors[difficulty];
+          const mainColor = this.dashTimer > 0 ? CONFIG.colors.dash : CONFIG.colors[currentDiff];
           ctx.shadowBlur = 20; ctx.shadowColor = mainColor;
           ctx.fillStyle = mainColor;
           fillRoundedRect(this.x - scrollOffsetX, this.y - scrollOffsetY, this.size, this.size, 8);
@@ -695,10 +785,13 @@
           this.color = CONFIG.colors[difficulty];
         }
         draw() {
-          ctx.strokeStyle = this.color;
-          ctx.lineWidth = 2; ctx.shadowBlur = 10; ctx.shadowColor = this.color;
+          const currentDiff = (difficulty === 'playground' && playgroundMode === 'play') ? simDifficulty : difficulty;
+          const drawColor = (difficulty === 'playground') ? CONFIG.colors[currentDiff] : this.color;
+          
+          ctx.strokeStyle = drawColor;
+          ctx.lineWidth = 2; ctx.shadowBlur = 10; ctx.shadowColor = drawColor;
           ctx.strokeRect(this.x - scrollOffsetX, this.y - scrollOffsetY, this.width, this.height);
-          ctx.fillStyle = this.color; ctx.globalAlpha = 0.15;
+          ctx.fillStyle = drawColor; ctx.globalAlpha = 0.15;
           ctx.fillRect(this.x - scrollOffsetX, this.y - scrollOffsetY, this.width, this.height);
           ctx.globalAlpha = 1.0; ctx.shadowBlur = 0;
         }
@@ -722,6 +815,7 @@
       }
 
       function checkCollisions() {
+        const currentDiff = difficulty === 'playground' ? simDifficulty : difficulty;
         platforms.forEach((p) => {
           if (player.x + player.size > p.x && player.x < p.x + p.width) {
             const playerBottom = player.y + player.size;
@@ -729,7 +823,7 @@
             if (player.vy >= 0 && prevPlayerBottom <= p.y + 5 && playerBottom >= p.y) {
               player.y = p.y - player.size; player.vy = 0;
               player.grounded = true; player.canDash = true;
-              player.jumpsLeft = CONFIG.maxJumps[difficulty]; return;
+              player.jumpsLeft = CONFIG.maxJumps[currentDiff]; return;
             }
             if (player.y + player.size > p.y && player.y < p.y + p.height) {
               const overlapLeft = player.x + player.size - p.x;
@@ -737,7 +831,7 @@
               if (!player.grounded && Math.min(overlapLeft, overlapRight) < 20) {
                 player.x = overlapLeft < overlapRight ? p.x - player.size : p.x + p.width;
                 player.vx = 0; player.onWall = true; player.canDash = true;
-                player.jumpsLeft = CONFIG.maxJumps[difficulty];
+                player.jumpsLeft = CONFIG.maxJumps[currentDiff];
               }
             }
           }
@@ -745,8 +839,9 @@
       }
 
       function drawGrid() {
+        const currentDiff = difficulty === 'playground' ? simDifficulty : difficulty;
         const gridSize = 100;
-        ctx.strokeStyle = CONFIG.colors[difficulty];
+        ctx.strokeStyle = CONFIG.colors[currentDiff];
         ctx.lineWidth = 0.5; ctx.globalAlpha = 0.05;
         const startX = -(scrollOffsetX % gridSize);
         const startY = -(scrollOffsetY % gridSize);
@@ -777,18 +872,20 @@
 
       function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if (difficulty === 'hard' || difficulty === 'master') {
-          const speed = difficulty === 'master' ? 300 : 500;
-          const opacity = difficulty === 'master' ? 0.06 : 0.02;
+        const currentDiff = difficulty === 'playground' ? simDifficulty : difficulty;
+        
+        if (currentDiff === 'hard' || currentDiff === 'master') {
+          const speed = currentDiff === 'master' ? 300 : 500;
+          const opacity = currentDiff === 'master' ? 0.06 : 0.02;
           const pulse = (Math.sin(Date.now() / speed) + 1) * opacity;
-          ctx.fillStyle = difficulty === 'master' ? `rgba(255, 170, 0, ${pulse})` : `rgba(255, 0, 85, ${pulse})`;
+          ctx.fillStyle = currentDiff === 'master' ? `rgba(255, 170, 0, ${pulse})` : `rgba(255, 0, 85, ${pulse})`;
           ctx.fillRect(0, 0, canvasWidth, canvasHeight);
         }
         drawGrid();
         platforms.forEach((p) => p.draw());
         
         // Draw preview of new platform
-        if (currentDragBox) {
+        if (currentDragBox && playgroundMode === 'edit') {
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 1; ctx.setLineDash([5, 5]);
             ctx.strokeRect(currentDragBox.x - scrollOffsetX, currentDragBox.y - scrollOffsetY, currentDragBox.w, currentDragBox.h);
@@ -805,17 +902,28 @@
       window.startGame = function (diff) {
         difficulty = diff;
         distance = 0; scrollOffsetX = 0; scrollOffsetY = 0; nextPlatformX = 0;
-        platforms = []; particles = []; shockwaves = [];
+        playgroundMode = 'edit';
         isFlying = (difficulty === 'playground');
+        
+        // Only clear platforms if we aren't already in playground (to allow "re-starting" without losing build)
+        // But for fresh game starts, we clear.
+        if (difficulty !== 'playground' || platforms.length === 0) {
+            platforms = [];
+        }
+        
+        particles = []; shockwaves = [];
         player.reset();
 
         if (difficulty !== 'playground') {
             platforms.push(new Platform(0, canvasHeight / 2 + 100, 1200, 30));
             nextPlatformX = 1250;
             for (let i = 0; i < 20; i++) spawnPlatform();
+            pgUI.style.display = 'none';
         } else {
-            // No initial platforms in playground
             nextPlatformX = 0;
+            pgUI.style.display = 'block';
+            pgStatusText.innerText = 'MODE: EDITING';
+            pgStatusText.style.color = '#bd00ff';
         }
 
         mainMenu.style.display = 'none'; gameOverMenu.style.display = 'none';
@@ -829,10 +937,11 @@
         flightStatus.style.display = (difficulty === 'playground') ? 'block' : 'none';
         flightToggleText.innerText = isFlying ? 'ON' : 'OFF';
 
-        document.getElementById('cooldown-bars').style.display = difficulty === 'playground' ? 'none' : 'block';
+        // Keep dash/grapple bars visible even in playground if we are in "Play Mode"
+        document.getElementById('cooldown-bars').style.display = 'block';
         
         if (difficulty === 'playground') {
-            hintText.innerText = 'Drag Left-Click: Build/Resize • Right-Click: Delete • F: Fly • C: Clear All • E: Grapple';
+            hintText.innerText = 'P: Toggle Play Mode • R: Reset Player • F: Fly • C: Clear All • Edit: Drag Left/Right-Click';
         } else {
             hintText.innerText = 'WAD Move • S Blink • Space Jump • Shift Dash • E Grapple';
         }
@@ -862,6 +971,7 @@
         updateMenuScores();
         gameOverMenu.style.display = 'none'; mainMenu.style.display = 'flex';
         hud.style.display = 'none'; diffTag.style.display = 'none';
+        pgUI.style.display = 'none';
         gameState = 'menu';
       };
 
