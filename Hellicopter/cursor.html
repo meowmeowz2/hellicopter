@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cursor Clicker</title>
+    <link rel="icon" type="image/png" href="Favicons/cursor.png" sizes="16x16" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: url('cursor/bg.jpeg') no-repeat center center fixed;
+            background-size: cover;
+            color: #fff;
+            margin: 0;
+            position: relative;
+            min-height: 100vh;
+        }
+
+        header,
+        footer {
+            max-width: 900px;
+            margin: auto;
+            padding: 1rem 2rem;
+            background: rgba(0, 0, 0, 0.75);
+            border-radius: 1rem;
+            margin-top: 2rem;
+        }
+
+        .container {
+            display: flex;
+            max-width: 900px;
+            margin: 2rem auto; /* Centralize */
+        }
+
+        .main-content {
+            flex: 2; /* 2/3 of the space */
+            padding: 2rem;
+            background: rgba(0, 0, 0, 0.75);
+            border-radius: 1rem;
+            margin-right: 1rem; /* Space between main and upgrades */
+        }
+
+        .upgrades-content {
+            flex: 1; /* 1/3 of the space */
+            padding: 2rem;
+            background: rgba(0, 0, 0, 0.75);
+            border-radius: 1rem;
+        }
+
+        button,
+        .click-btn {
+            padding: 1rem;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            transition: transform 0.1s ease; /* Smooth transition for scaling */
+        }
+
+        .click-btn {
+            background: url('cursor/cursor.png') no-repeat center;
+            background-size: contain;
+            width: 120px;
+            height: 120px;
+            display: block;
+            margin: 1rem auto;
+        }
+
+        .click-effect {
+            animation: clickAnim 0.2s forwards; /* Trigger click animation */
+        }
+
+        @keyframes clickAnim {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(0.8); /* Make it smaller */
+                opacity: 0.7;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .grid {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        }
+
+        .upgrade,
+        .achievement {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .prestige {
+            margin-top: 2rem;
+            text-align: center;
+        }
+
+        .prestige button {
+            background-color: darkred;
+            color: white;
+        }
+
+        #achievements {
+            margin-top: 2rem;
+        }
+
+        .reset-button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 0.5rem;
+            margin-top: 1rem; /* added top margin */
+        }
+        .cursor-pop-up {
+    position: absolute;
+    width: 30px; /* Set the width of the cursor */
+    height: 30px; /* Set the height of the cursor */
+    background: url('cursor/cursor.png') no-repeat center; /* Use your cursor image */
+    background-size: contain;
+    opacity: 1;
+    transition: opacity 1s ease; /* Fade out effect */
+    }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Cursor Clicker</h1>
+        <p>Click, upgrade, prestige — with achievements and custom upgrades!</p>
+    </header>
+
+    <div class="container">
+        <div class="main-content">
+            <h2>Points: <span id="score">0</span></h2>
+            <h3>Click Power: <span id="clickPower">1</span> | Prestige Bonus: <span id="prestigeBonus">1x</span></h3>
+            <button class="click-btn" id="click-button" onclick="handleClick()"></button>
+
+            <div class="prestige">
+                <h3>Prestige</h3>
+                <p>Reset for permanent +1x point multiplier. Requires 10,000 points.</p>
+                <button onclick="prestige()">Prestige Now</button>
+            </div>
+
+            <section id="achievements">
+                <h3>Achievements</h3>
+                <div class="grid" id="achievementList"></div>
+            </section>
+
+            <button class="reset-button" onclick="resetGame()">Reset Game</button>
+        </div>
+
+        <div class="upgrades-content">
+            <h2>Upgrades</h2>
+            <div class="grid" id="upgrades"></div>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2025 Cursor Clicker Game</p>
+    </footer>
+
+    <script>
+    let score = 0;
+    let clickPower = 1;
+    let prestigeLevel = 0;
+    let upgrades = [];
+    let achievements = [];
+    
+    const scoreEl = document.getElementById("score");
+    const clickPowerEl = document.getElementById("clickPower");
+    const prestigeBonusEl = document.getElementById("prestigeBonus");
+    const upgradesEl = document.getElementById("upgrades");
+    const achievementList = document.getElementById("achievementList");
+    const clickButton = document.getElementById("click-button");
+    
+    const upgradeDefs = [
+        { name: "Finger Workout", type: "click", value: 1, cost: 50 },
+        { name: "Idle Assistant", type: "auto", value: 1, cost: 75 },
+        { name: "Steel Index", type: "click", value: 2, cost: 100 },
+        { name: "Background Bot", type: "auto", value: 3, cost: 200 },
+        { name: "Magic Tap", type: "click", value: 4, cost: 200 },
+        { name: "Robo Clicker", type: "auto", value: 5, cost: 400 },
+        { name: "Quantum Cursor", type: "click", value: 7, cost: 400 },
+        { name: "Factory Line", type: "auto", value: 10, cost: 800 },
+        { name: "Supercharged Swipe", type: "click", value: 10, cost: 800 },
+        { name: "Quantum Drone", type: "auto", value: 15, cost: 1500 },
+        { name: "Nano Touch", type: "click", value: 15, cost: 1600 },
+        { name: "Time Machine", type: "auto", value: 25, cost: 3000 },
+        { name: "Dimensional Click", type: "click", value: 25, cost: 3000 },
+        { name: "AI Overseer", type: "auto", value: 40, cost: 5000 },
+        { name: "Time Loop Tapper", type: "click", value: 40, cost: 5000 },
+        { name: "Galactic Engine", type: "auto", value: 60, cost: 8000 },
+        { name: "Clickstorm Burst", type: "click", value: 60, cost: 7500 },
+        { name: "Dark Matter Miner", type: "auto", value: 90, cost: 11000 },
+        { name: "Infinity Touch", type: "click", value: 100, cost: 10000 },
+        { name: "Cosmic Core", type: "auto", value: 150, cost: 15000 },
+    ];
+    
+    const achievementDefs = [
+        { id: "first_click", name: "First Click", check: () => score > 0 },
+        { id: "first_upgrade", name: "First Upgrade", check: () => upgrades.some(u => u.level > 0) },
+        { id: "hundred_points", name: "100 Points", check: () => score >= 100 },
+        { id: "ten_k_points", name: "10,000 Points", check: () => score >= 10000 },
+        { id: "first_prestige", name: "First Prestige", check: () => prestigeLevel >= 1 },
+        { id: "million_points", name: "1,000,000 Points", check: () => score >= 1000000 },
+        { id: "level_five_upgrade", name: "Level 5 Upgrade", check: () => upgrades.some(u => u.level >= 5) },
+        { id: "level_ten_upgrade", name: "Level 10 Upgrade", check: () => upgrades.some(u => u.level >= 10) },
+        { id: "first_auto_upgrade", name: "First Auto Upgrade", check: () => upgrades.some(u => u.type === "auto" && u.level > 0) },
+        { id: "all_upgrades", name: "Got All Upgrades", check: () => upgrades.length > 0 && upgrades.every(u => u.level > 0) },
+        { id: "prestige_three_times", name: "Prestiged 3 Times", check: () => prestigeLevel >= 3 },
+        { id: "fifty_k_points", name: "50,000 Points", check: () => score >= 50000 },
+        { id: "hundred_upgrades", name: "100 Total Upgrades", check: () => upgrades.reduce((sum, u) => sum + u.level, 0) >= 100 },
+        { id: "space_clicker", name: "Cosmic Clicker", check: () => score >= 500000 },
+    ];
+    
+    function handleClick() {
+        score += clickPower * (1 + prestigeLevel);
+        updateUI();
+        saveGame();
+        triggerClickEffect();
+        createCursorPopUp();
+    }
+    
+    function createCursorPopUp() {
+    // Get the viewport dimensions
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // Generate random x and y coordinates within the viewport
+    const x = Math.floor(Math.random() * viewportWidth);
+    const y = Math.floor(Math.random() * viewportHeight);
+
+    const cursorPopUp = document.createElement("div");
+    cursorPopUp.className = "cursor-pop-up";
+    cursorPopUp.style.left = `${x}px`;
+    cursorPopUp.style.top = `${y}px`;
+    document.body.appendChild(cursorPopUp);
+
+    // Fade out and remove after 1s
+    setTimeout(() => {
+        cursorPopUp.style.opacity = 0;
+        setTimeout(() => {
+            cursorPopUp.remove();
+        }, 1000);
+    }, 0);
+}
+    
+    function triggerClickEffect() {
+        clickButton.classList.add('click-effect');
+        setTimeout(() => {
+            clickButton.classList.remove('click-effect');
+        }, 200);
+    }
+    
+    function updateUI() {
+        scoreEl.textContent = Math.floor(score);
+        clickPowerEl.textContent = clickPower;
+        prestigeBonusEl.textContent = `${1 + prestigeLevel}x`;
+        checkAchievements();
+    }
+    
+    function buyUpgrade(index) {
+        const upg = upgrades[index];
+        if (score >= upg.cost) {
+            score -= upg.cost;
+            upg.level++;
+            upg.cost = Math.floor(upg.cost * 1.5); // Increase the cost for next purchase
+    
+            if (upg.type === "click") {
+                clickPower += upg.value; // Increment click power for click upgrades
+            } else if (upg.type === "auto") {
+                if (upg.level === 1) { // Start auto-clicking only when the level goes from 0 to 1
+                    startAutoUpgrade(upg); // Start auto-click immediately
+                } else {
+                    clearInterval(upg.interval);
+                    startAutoUpgrade(upg);
+                }
+            }
+    
+            renderUpgrades();
+            updateUI();
+            saveGame();
+        }
+    }
+    
+    function startAutoUpgrade(upgrade) {
+    clearInterval(upgrade.interval); // Clear any existing interval
+
+    upgrade.interval = setInterval(() => {
+        if (upgrade.level > 0) {
+            // Calculate the score increase based on upgrade level, base value, and prestige bonus.
+            const scoreIncrease = (upgrade.value * upgrade.level) * (1 + prestigeLevel);
+            score += scoreIncrease;
+            createCursorPopUp()
+            triggerClickEffect();
+            updateUI();
+            saveGame();
+        }
+    }, 1000); // 1000 ms = 1 second
+}
+    
+    function prestige() {
+        if (score >= 10000) {
+            score = 0;
+            clickPower = 1;
+            prestigeLevel++;
+    
+            upgrades.forEach(u => {
+                u.level = 0;
+                u.cost = u.baseCost;
+                if (u.interval) {
+                    clearInterval(u.interval);
+                    delete u.interval;
+                }
+            });
+    
+            renderUpgrades();
+            updateUI();
+            saveGame();
+        } else {
+            alert("You need 10,000 points to prestige.");
+        }
+    }
+    
+    function renderUpgrades() {
+        upgradesEl.innerHTML = "";
+        upgrades.forEach((u, i) => {
+            const div = document.createElement("div");
+            div.className = "upgrade";
+            div.innerHTML = `
+                <h4>${u.name}</h4>
+                <p>Type: ${u.type} | Level: ${u.level}</p>
+                <p>Effect: +${u.value} ${u.type === "click" ? "click power" : "pts/sec"}</p>
+                <button onclick="buyUpgrade(${i})">Buy for ${u.cost}</button>
+            `;
+            upgradesEl.appendChild(div);
+        });
+    }
+    
+    function checkAchievements() {
+        achievementDefs.forEach(a => {
+            if (!achievements.includes(a.id) && a.check()) {
+                achievements.push(a.id);
+                renderAchievements();
+                saveGame();
+                alert("Achievement Unlocked: " + a.name);
+            }
+        });
+    }
+    
+    function renderAchievements() {
+        achievementList.innerHTML = "";
+        achievementDefs.forEach(a => {
+            const unlocked = achievements.includes(a.id);
+            const div = document.createElement("div");
+            div.className = "achievement";
+            div.innerHTML = `<strong>${unlocked ? "✅" : "❌"} ${a.name}</strong>`;
+            achievementList.appendChild(div);
+        });
+    }
+    
+    function saveGame() {
+        localStorage.setItem("clickerData", JSON.stringify({
+            score, clickPower, prestigeLevel, upgrades, achievements
+        }));
+    }
+    
+    function loadGame() {
+        const data = JSON.parse(localStorage.getItem("clickerData"));
+        if (data) {
+            score = data.score || 0;
+            clickPower = data.clickPower || 1;
+            prestigeLevel = data.prestigeLevel || 0;
+            achievements = data.achievements || [];
+    
+            upgrades = upgradeDefs.map((def, i) => ({
+                ...def,
+                level: data.upgrades?.[i]?.level || 0,
+                cost: data.upgrades?.[i]?.cost || def.cost,
+                interval: data.upgrades?.[i]?.interval || null // Load interval data
+            }));
+    
+            upgrades.forEach((u, i) => { u.baseCost = upgradeDefs[i].cost; });
+    
+            // Restart auto upgrades for any upgrades that have been leveled
+            upgrades.forEach(u => {
+                if (u.type === "auto" && u.level > 0) {
+                    startAutoUpgrade(u);
+                }
+            });
+    
+            updateUI();
+            renderUpgrades();
+            renderAchievements();
+        } else {
+            upgrades = upgradeDefs.map(u => ({
+                ...u,
+                level: 0,
+                baseCost: u.cost
+            }));
+        }
+    }
+    
+    function resetGame() {
+        score = 0;
+        clickPower = 1;
+        prestigeLevel = 0;
+    
+        upgrades.forEach(upgrade => {
+            upgrade.level = 0;
+            upgrade.cost = upgrade.baseCost;
+            if (upgrade.interval) {
+                clearInterval(upgrade.interval);
+                upgrade.interval = null;
+            }
+        });
+        upgrades = upgrades.map(u => ({ ...u }));
+    
+        achievements = [];
+    
+        updateUI();
+        renderUpgrades();
+        renderAchievements();
+        saveGame();
+    }
+    
+    loadGame();
+    setInterval(saveGame, 5000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pizza Defense</title>
+    <link rel="icon" type="image/png" href="Favicons/pizza.png" sizes="16x16" />
+    <link rel="stylesheet" href="Libraries/styles.css">
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <style>
+        #gameCanvas {
+            background-color: var(--bs-dark);
+            border: 2px solid var(--bs-secondary);
+            width: 100%;
+            height: 600px;
+        }
+
+        .card {
+            background-color: var(--bs-dark);
+            border: 1px solid var(--bs-secondary);
+        }
+
+        .btn-tower {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row mt-4">
+            <div class="col-12 text-center">
+                <h1>Pizza Defense</h1>
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <div class="col-md-9">
+                <canvas id="gameCanvas"></canvas>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Game Stats</h5>
+                        <p>Money: $<span id="money">200</span></p>
+                        <p>Lives: <span id="lives">10</span></p>
+                        <p>Score: <span id="score">0</span></p>
+                        <p>Wave: <span id="wave">1</span></p>
+                        <hr>
+                        <h5>Towers</h5>
+                        <button class="btn btn-secondary mb-2 w-100" onclick="game.selectTower('basic')">
+                            Basic Tower ($25)
+                        </button>
+                        <button class="btn btn-secondary mb-2 w-100" onclick="game.selectTower('rapid')">
+                            Rapid Tower ($100)
+                        </button>
+                        <button class="btn btn-secondary mb-2 w-100" onclick="game.selectTower('sniper')">
+                            Sniper Tower ($500)
+                        </button>
+                        <button class="btn btn-secondary mb-2 w-100" onclick="game.selectTower('splash')">
+                            Splash Tower ($250)
+                        </button>
+                        <button class="btn btn-secondary mb-2 w-100" onclick="game.selectTower('frost')">
+                            Frost Tower ($175)
+                        </button>
+                        <hr>
+                        <button class="btn btn-primary w-100 mb-2" onclick="game.startWave()">Start Wave</button>
+                        <button id="speedBtn" class="btn btn-secondary w-100" onclick="game.toggleSpeed()">Speed: 1x</button>
+                        <div id="highScores" class="mt-3">
+                            <!-- High scores will be loaded here -->
+                        </div>
+                        <p>Destroy the oddly-looking pizzas! Use all five towers :D</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // PathManager class
+        class PathManager {
+            constructor(width, height) {
+                this.width = width;
+                this.height = height;
+                this.path = this.generatePath();
+            }
+
+            isPointNearPath(x, y, radius) {
+                for (let i = 0; i < this.path.length - 1; i++) {
+                    const start = this.path[i];
+                    const end = this.path[i + 1];
+
+                    // Check distance to line segment
+                    const dx = end.x - start.x;
+                    const dy = end.y - start.y;
+                    const length = Math.sqrt(dx * dx + dy * dy);
+
+                    // Project point onto line segment
+                    const t = Math.max(0, Math.min(1, ((x - start.x) * dx + (y - start.y) * dy) / (length * length)));
+                    const projX = start.x + t * dx;
+                    const projY = start.y + t * dy;
+
+                    const distance = Math.sqrt((x - projX) * (x - projX) + (y - projY) * (y - projY));
+                    if (distance < radius + 5) { // 5 is path width
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            generatePath() {
+                // Generate a simple S-shaped path
+                const path = [];
+                const margin = 50;
+                const segments = 4;
+                const segmentHeight = (this.height - margin * 2) / segments;
+
+                // Start point
+                path.push({ x: 0, y: margin });
+
+                // Create S-shaped curve
+                for (let i = 0; i <= segments; i++) {
+                    const x = i % 2 === 0 ? this.width - margin : margin;
+                    const y = margin + i * segmentHeight;
+                    path.push({ x, y });
+                }
+
+                return path;
+            }
+
+            draw(ctx) {
+                ctx.beginPath();
+                ctx.moveTo(this.path[0].x, this.path[0].y);
+                
+                for (let i = 1; i < this.path.length; i++) {
+                    ctx.lineTo(this.path[i].x, this.path[i].y);
+                }
+
+                ctx.strokeStyle = '#666666';
+                ctx.lineWidth = 20;
+                ctx.stroke();
+                ctx.lineWidth = 1;
+            }
+
+            getPath() {
+                return this.path;
+            }
+        }
+
+        // Tower class
+        class Tower {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                this.lastShot = 0;
+
+                switch (type) {
+                    case 'basic':
+                        this.range = 100;
+                        this.damage = 20;
+                        this.fireRate = 1000;
+                        this.cost = 25;
+                        break;
+                    case 'rapid':
+                        this.range = 80;
+                        this.damage = 5;
+                        this.fireRate = 200;
+                        this.cost = 100;
+                        break;
+                    case 'sniper':
+                        this.range = 300;
+                        this.damage = 100;
+                        this.fireRate = 1500;
+                        this.cost = 500;
+                        break;
+                    case 'splash':
+                        this.range = 120;
+                        this.damage = 30;
+                        this.fireRate = 300;
+                        this.cost = 250;
+                        break;
+                    case 'frost':
+                        this.range = 90;
+                        this.damage = 5;
+                        this.fireRate = 400;
+                        this.cost = 175;
+                        break;
+                }
+            }
+
+            fire(enemy) {
+                const now = Date.now();
+                const adjustedFireRate = this.fireRate / (window.game ? window.game.gameSpeed : 1);
+                if (now - this.lastShot >= adjustedFireRate) {
+                    this.lastShot = now;
+                    return new Projectile(this.x, this.y, enemy, this.damage, this.type);
+                }
+                return null;
+            }
+
+            draw(ctx) {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 15, 0, Math.PI * 2);
+                ctx.fillStyle = this.getColor();
+                ctx.fill();
+                ctx.closePath();
+            }
+
+            getColor() {
+                switch (this.type) {
+                    case 'basic': return '#666666';
+                    case 'rapid': return '#00ff00';
+                    case 'sniper': return '#ff0000';
+                    case 'splash': return '#ffa500';
+                    case 'frost': return '#00ffff';
+                    default: return '#ffffff';
+                }
+            }
+        }
+
+        // Projectile class
+        class Projectile {
+            constructor(x, y, target, damage, type) {
+                this.x = x;
+                this.y = y;
+                this.target = target;
+                this.damage = damage;
+                this.type = type;
+                this.speed = 5;
+                this.splashRadius = type === 'splash' ? 100 : 0;
+            }
+
+            move() {
+                const dx = this.target.x - this.x;
+                const dy = this.target.y - this.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < 5) return true;
+
+                this.x += (dx / distance) * this.speed;
+                this.y += (dy / distance) * this.speed;
+                return false;
+            }
+
+            draw(ctx) {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = this.getColor();
+                ctx.fill();
+                ctx.closePath();
+            }
+
+            getColor() {
+                switch (this.type) {
+                    case 'basic': return '#888888';
+                    case 'rapid': return '#22ff22';
+                    case 'sniper': return '#ff2222';
+                    case 'splash': return '#ffb732';
+                    case 'frost': return '#22ffff';
+                    default: return '#ffffff';
+                }
+            }
+        }
+
+        // Pizza (enemy) class
+        class Pizza {
+            constructor(path, wave) {
+                this.path = path;
+                this.pathIndex = 0;
+                this.x = path[0].x;
+                this.y = path[0].y;
+                this.type = this.determineType(wave);
+
+                // Base stats modified by type
+                const baseStats = {
+                    normal: { health: 100, speed: 1, value: 5, color: '#ff6b6b' },
+                    cooked: { health: 200, speed: 1.5, value: 10, color: '#ffa94d' },
+                    burnt: { health: 400, speed: 0.8, value: 50, color: '#495057' },
+                    zombie: { health: 800, speed: 0.6, value: 100, color: '#69db7c' },
+                    boss: { health: 2000, speed: 0.1, value: 500, color: '#ff0000' }
+                };
+
+                const stats = baseStats[this.type];
+                this.health = stats.health + (wave * 20);
+                this.speed = stats.speed + (wave * 0.05);
+                this.value = stats.value + (wave * 2);
+                this.color = stats.color;
+
+                this.maxHealth = this.health;
+                this.slowed = false;
+                this.slowUntil = 0;
+            }
+
+            determineType(wave) {
+                if (wave < 20) return wave >= 15 ? 'burnt' : 'normal';
+                if (wave % 10 === 0 && wave >= 20) return 'boss';
+                if (wave >= 15) return Math.random() < 0.2 ? 'zombie' : 'burnt';
+                if (wave >= 10) return Math.random() < 0.3 ? 'burnt' : 'cooked';
+                if (wave >= 5) return Math.random() < 0.4 ? 'cooked' : 'normal';
+                return 'normal';
+            }
+
+            move() {
+                if (this.pathIndex >= this.path.length - 1) return true;
+
+                const currentSpeed = this.slowed && Date.now() < this.slowUntil ? this.speed * 0.5 : this.speed;
+                const target = this.path[this.pathIndex + 1];
+                const dx = target.x - this.x;
+                const dy = target.y - this.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < currentSpeed) {
+                    this.pathIndex++;
+                    if (this.pathIndex >= this.path.length - 1) return true;
+                } else {
+                    this.x += (dx / distance) * currentSpeed;
+                    this.y += (dy / distance) * currentSpeed;
+                }
+                return false;
+            }
+
+            takeDamage(amount) {
+                this.health -= amount;
+                return this.health <= 0;
+            }
+
+            slow(duration) {
+                this.slowed = true;
+                this.slowUntil = Date.now() + duration;
+            }
+
+            draw(ctx) {
+                // Draw pizza enemy
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.type === 'boss' ? 20 : 10, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.closePath();
+
+                // Draw health bar
+                const healthBarWidth = this.type === 'boss' ? 30 : 20;
+                const healthBarHeight = 4;
+                const healthPercentage = this.health / this.maxHealth;
+
+                ctx.fillStyle = '#ff0000';
+                ctx.fillRect(this.x - healthBarWidth/2, this.y - 15, healthBarWidth, healthBarHeight);
+
+                ctx.fillStyle = '#00ff00';
+                ctx.fillRect(this.x - healthBarWidth/2, this.y - 15, healthBarWidth * healthPercentage, healthBarHeight);
+            }
+        }
+
+        // Game class
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.resizeCanvas();
+                
+                this.gameSpeed = 1;  // Normal speed by default
+                this.money = 200;  // Starting money reduced
+                this.lives = 10;
+                this.score = 0;
+                this.wave = 1;
+                this.towers = [];
+                this.enemies = [];
+                this.projectiles = [];
+                this.selectedTower = null;
+                this.pathManager = new PathManager(this.canvas.width, this.canvas.height);
+                this.waveInProgress = false;
+                this.gameOver = false;
+
+                window.addEventListener('resize', () => this.resizeCanvas());
+                this.canvas.addEventListener('click', (e) => this.handleClick(e));
+                this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+
+                this.updateUI();  // Initial UI update
+                this.gameLoop();
+            }
+
+            resizeCanvas() {
+                const container = this.canvas.parentElement;
+                this.canvas.width = container.clientWidth;
+                this.canvas.height = 600;
+            }
+
+            handleClick(e) {
+                if (this.gameOver) return;
+
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                if (this.selectedTower) {
+                    // Check if too close to path
+                    const towerRadius = 15;
+                    const isOnPath = this.pathManager.isPointNearPath(x, y, towerRadius);
+
+                    if (isOnPath) {
+                        alert('Cannot place tower on the path!');
+                        return;
+                    }
+
+                    const towerType = this.selectedTower; // Store the selected tower type
+                    const tower = new Tower(x, y, towerType); // Pass the type to Tower constructor
+                    if (this.money >= tower.cost) {
+                        this.towers.push(tower);
+                        this.money -= tower.cost;
+                        this.selectedTower = null;
+                        this.updateUI();
+                    } else {
+                        alert('Not enough money!');
+                    }
+                }
+            }
+
+            handleMouseMove(e) {
+                // Preview tower placement
+            }
+
+            startWave() {
+                if (this.waveInProgress || this.gameOver) return;
+
+                this.waveInProgress = true;
+                const enemyCount = Math.min(this.wave * 5, 30);  // Cap max enemies
+                let enemiesSpawned = 0;
+
+                const spawnInterval = setInterval(() => {
+                    if (enemiesSpawned >= enemyCount || this.gameOver) {
+                        clearInterval(spawnInterval);
+                        return;
+                    }
+
+                    this.enemies.push(new Pizza(this.pathManager.getPath(), this.wave));
+                    enemiesSpawned++;
+                }, 1000 / this.gameSpeed);
+            }
+
+            update() {
+                if (this.gameOver) return;
+
+                // Update enemies
+                this.enemies = this.enemies.filter(enemy => {
+                    const reachedEnd = enemy.move();
+                    if (reachedEnd) {
+                        this.lives--;
+                        this.updateUI();
+                        if (this.lives <= 0) {
+                            this.gameOver = true;
+                            this.handleGameOver();
+                        }
+                        return false;
+                    }
+                    return true;
+                });
+
+                // Update towers and projectiles
+                this.towers.forEach(tower => {
+                    this.enemies.forEach(enemy => {
+                        const dx = enemy.x - tower.x;
+                        const dy = enemy.y - tower.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+
+                        if (distance <= tower.range) {
+                            const projectile = tower.fire(enemy);
+                            if (projectile) this.projectiles.push(projectile);
+                        }
+                    });
+                });
+
+                // Update projectiles
+                this.projectiles = this.projectiles.filter(projectile => {
+                    const hit = projectile.move();
+                    if (hit) {
+                        const enemy = projectile.target;
+
+                        // Handle different projectile effects
+                        if (projectile.type === 'splash') {
+                            // Apply splash damage to nearby enemies
+                            this.enemies.forEach(nearbyEnemy => {
+                                const dx = nearbyEnemy.x - enemy.x;
+                                const dy = nearbyEnemy.y - enemy.y;
+                                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                                if (distance <= projectile.splashRadius) {
+                                    const splashDamage = projectile.damage * (1 - distance / projectile.splashRadius);
+                                    const killed = nearbyEnemy.takeDamage(splashDamage);
+                                    if (killed) {
+                                        this.score += 10;
+                                        this.money += nearbyEnemy.value;
+                                        this.enemies = this.enemies.filter(e => e !== nearbyEnemy);
+                                        this.updateUI();
+                                    }
+                                }
+                            });
+                        } else {
+                            // Handle direct hits
+                            const killed = enemy.takeDamage(projectile.damage);
+                            if (killed) {
+                                this.score += 10;
+                                this.money += enemy.value;
+                                this.enemies = this.enemies.filter(e => e !== enemy);
+                                this.updateUI();
+                            } else if (projectile.type === 'frost') {
+                                // Apply slow effect
+                                enemy.slow(2000); // 2 second slow
+                            }
+                        }
+                        return false;
+                    }
+                    return true;
+                });
+
+                // Check wave completion
+                if (this.waveInProgress && this.enemies.length === 0) {
+                    this.waveInProgress = false;
+                    this.wave++;
+                    this.money += 100;  // Bonus money for completing wave
+                    this.updateUI();
+                }
+            }
+
+            updateUI() {
+                document.getElementById('lives').textContent = this.lives;
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('wave').textContent = this.wave;
+                document.getElementById('money').textContent = this.money;
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Draw path
+                this.pathManager.draw(this.ctx);
+
+                // Draw towers
+                this.towers.forEach(tower => tower.draw(this.ctx));
+
+                // Draw enemies
+                this.enemies.forEach(enemy => enemy.draw(this.ctx));
+
+                // Draw projectiles
+                this.projectiles.forEach(projectile => projectile.draw(this.ctx));
+
+                if (this.gameOver) {
+                    this.drawGameOver();
+                }
+            }
+
+            drawGameOver() {
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.font = '48px Arial';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText('Game Over!', this.canvas.width / 2, this.canvas.height / 2 - 50);
+
+                this.ctx.font = '24px Arial';
+                this.ctx.fillText(`Final Score: ${this.score}`, this.canvas.width / 2, this.canvas.height / 2);
+                this.ctx.fillText(`Waves Completed: ${this.wave - 1}`, this.canvas.width / 2, this.canvas.height / 2 + 40);
+            }
+
+            handleGameOver() {
+                this.waveInProgress = false;
+                this.saveScore();
+            }
+
+            gameLoop() {
+                for (let i = 0; i < this.gameSpeed; i++) {
+                    this.update();
+                }
+                this.draw();
+                requestAnimationFrame(() => this.gameLoop());
+            }
+
+            toggleSpeed() {
+                this.gameSpeed = this.gameSpeed === 1 ? 2 : 1;
+                document.getElementById('speedBtn').textContent = `Speed: ${this.gameSpeed}x`;
+            }
+
+            selectTower(type) {
+                if (!this.gameOver) {
+                    this.selectedTower = type;
+                }
+            }
+
+            async saveScore() {
+                const playerName = prompt('Game Over! Your score: ' + this.score);
+                try {
+                    // Just display the score without saving to database
+                    this.updateHighScoresDisplay([{
+                        player_name: playerName || 'Anonymous',
+                        score: this.score,
+                        waves_completed: this.wave - 1
+                    }]);
+                } catch (error) {
+                    console.error('Error handling score:', error);
+                }
+            }
+
+            async loadHighScores() {
+                // No need to load scores from database
+                return;
+            }
+
+            updateHighScoresDisplay(scores) {
+                const container = document.getElementById('highScores');
+                if (!container) return;
+
+                container.innerHTML = `
+                    <h5>High Scores</h5>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Player</th>
+                                    <th>Score</th>
+                                    <th>Wave</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${scores.map(score => `
+                                    <tr>
+                                        <td>${score.player_name}</td>
+                                        <td>${score.score}</td>
+                                        <td>${score.waves_completed}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize game and load high scores
+        window.onload = () => {
+            window.game = new Game();
+            window.game.loadHighScores();
+        };
+    </script>
+</body>
+</html>

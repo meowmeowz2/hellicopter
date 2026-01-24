@@ -1,0 +1,497 @@
+/* CSS Variables for Theming */
+:root {
+ --background-color: linear-gradient(to bottom, #0f1a20, #050d12);
+ --text-color: #e0e0e0;
+ --link-color: #5c8aff;
+ --button-background-color: #5c8aff;
+ --button-text-color: #0d1a25;
+ --container-bg-color: #1a2c3b;
+ --border-color: #5c8aff;
+ --hover-color: #a0e6ff;
+}
+
+/* Dark Theme Styles */
+.theme-dark {
+    --background-color: linear-gradient(to bottom, #1e1e1e, #0a0a0a);
+    --text-color: #f0f0f0;
+    --link-color: #9aff9a; /* A contrasting color */
+    --button-background-color: #333333; /* A slightly lighter dark color */
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--background-color);
+    color: var(--text-color);
+}
+
+.container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 0 20px;
+}
+
+header {
+    text-align: center;
+    padding: 60px 0 40px;
+    background-color: rgba(0, 0, 0, 0.5);
+    margin-bottom: 40px;
+    border-bottom: 3px solid #5c8aff;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+}
+
+header h1 {
+    color: var(--link-color);
+    font-size: 3.5em;
+    margin: 0;
+    text-shadow: 0 0 15px #5c8aff, 0 0 10px rgba(0, 0, 0, 0.8);
+    letter-spacing: 2px;
+}
+
+header p {
+    font-size: 1.3em;
+    color: #a0e6ff;
+    margin-top: 10px;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.game-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 25px;
+}
+
+.game-item {
+    background-color: var(--container-bg-color);
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: transform 0.4s ease, box-shadow 0.4s ease;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    position: relative;
+}
+
+.game-item:hover {
+    transform: translateY(-8px) rotateZ(1deg);
+    box-shadow: 0 15px 25px rgba(0, 0, 0, 0.6), 0 0 20px #5c8aff;
+    border-color: var(--hover-color);
+}
+
+.game-item a {
+    display: block;
+    text-decoration: none;
+    color: #e0e0e0;
+    padding: 30px 20px;
+    text-align: center;
+    font-size: 1.3em;
+    font-weight: bold;
+    transition: color 0.3s ease;
+}
+
+.game-item a:hover {
+    color: var(--hover-color);
+    text-shadow: 0 0 8px rgba(var(--hover-color), 0.7);
+}
+
+.tabs {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 2px solid rgba(160, 230, 255, 0.3);
+}
+
+.tab-button {
+    background-color: var(--container-bg-color);
+    color: var(--hover-color);
+    padding: 15px 25px;
+    border: none;
+    border-radius: 5px 5px 0 0;
+    cursor: pointer;
+    font-size: 1.1em;
+    font-weight: bold;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    margin-right: 5px;
+}
+
+.tab-button:hover {
+    background-color: var(--button-text-color);
+    color: var(--link-color);
+}
+
+.tab-button.active {
+    background-color: var(--button-background-color);
+    color: var(--button-text-color);
+    cursor: default;
+    border-bottom: 2px solid #5c8aff;
+    margin-bottom: -2px;
+}
+
+.tab-content {
+    display: none;
+    padding: 30px;
+    border: 2px solid #5c8aff;
+    background-color: var(--container-bg-color);
+    border-radius: 0 10px 10px 10px;
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.4);
+}
+
+.tab-content.active {
+    display: block;
+}
+
+#betas-content {
+    background: linear-gradient(45deg, #5c8aff, #a0e6ff);
+    color: #0d1a25;
+    border-color: #a0e6ff;
+    text-align: center;
+}
+
+#betas-content p {
+    font-size: 1.2em;
+    margin-bottom: 30px;
+    color: #1a2c3b;
+}
+
+#betas-content .beta-game-link {
+    display: inline-block;
+    background-color: var(--container-bg-color);
+    color: var(--hover-color);
+    padding: 18px 35px;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 1.1em;
+    transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+    border: 1px solid #1a2c3b;
+}
+
+#betas-content .beta-game-link:hover {
+    background-color: var(--button-text-color);
+    color: var(--link-color);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.5), 0 0 15px rgba(92, 138, 255, 0.7);
+    border-color: #5c8aff;
+}
+
+#secret-page {
+    display: none;
+    padding: 30px;
+    border: 5px solid #5c8aff;
+    border-radius: 0 10px 10px 15px;
+    background-color: var(--container-bg-color);
+    background-color: #1a2c3b;
+}
+
+#secret-page.yay {
+    display: none;
+    padding: 30px;
+    border: 5px solid #5c8aff;
+    border-radius: 0 10px 10px 15px;
+    background-color: var(--container-bg-color);
+    background-color: #1a2c3b;
+}
+
+footer {
+    text-align: center;
+    padding: 30px 0;
+    margin-top: 60px;
+    color: #888;
+    font-size: 0.9em;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Light Mode Styles */
+body.light-mode {
+    background: linear-gradient(to bottom, #f0f0f0, #e0e0e0);
+    color: #333;
+}
+
+body.light-mode header {
+    background-color: rgba(255, 255, 255, 0.8);
+    border-bottom: 3px solid #007BFF;
+}
+
+body.light-mode header h1 {
+    color: #007BFF;
+    text-shadow: 0 0 10px #007BFF, 0 0 5px rgba(0, 123, 255, 0.5);
+}
+
+body.light-mode header p {
+    color: #0056b3;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+body.light-mode .game-item {
+    background-color: #fff;
+    border: 2px solid #007BFF;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+body.light-mode .game-item:hover {
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.4), 0 0 15px #007BFF;
+    border-color: #0056b3;
+}
+
+body.light-mode .game-item a {
+    color: #333;
+}
+
+body.light-mode .game-item a:hover {
+    color: #0056b3;
+    text-shadow: 0 0 5px rgba(0, 86, 179, 0.7);
+}
+
+body.light-mode .tabs {
+    border-bottom: 2px solid rgba(0, 123, 255, 0.3);
+}
+
+body.light-mode .tab-button {
+    background-color: #fff;
+    color: #0056b3;
+}
+
+body.light-mode .tab-button:hover {
+    background-color: #e0e0e0;
+    color: #007BFF;
+}
+
+body.light-mode .tab-button.active {
+    background-color: #007BFF;
+    color: #fff;
+    border-bottom: 2px solid #007BFF;
+}
+
+body.light-mode .tab-content {
+    border: 2px solid #007BFF;
+    background-color: #fff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+body.light-mode #betas-content {
+    background: linear-gradient(45deg, #007BFF, #0056b3);
+    color: #fff;
+    border-color: #0056b3;
+}
+
+body.light-mode #betas-content p {
+    color: #333;
+}
+
+body.light-mode #betas-content .beta-game-link {
+    background-color: #fff;
+    color: #0056b3;
+    border: 1px solid #fff;
+}
+
+body.light-mode #betas-content .beta-game-link:hover {
+    background-color: #e0e0e0;
+    color: #007BFF;
+    border-color: #007BFF;
+}
+
+body.light-mode footer {
+    color: #666;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Settings Styles */
+.settings-panel {
+    position: fixed;
+    top: 20px;
+    right: -270px; /* Start collapsed */
+    background-color: var(--container-bg-color);
+    padding: 20px;
+    border: 2px solid #5c8aff;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    width: 250px;
+}
+.settings-panel.open {
+    right: 20px; /* Slide open */
+}
+
+.settings-panel label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--hover-color);
+}
+.settings-panel input[type="number"] {
+    background-color: #1a2c3b;
+    color: #a0e6ff;
+    border: 1px solid #5c8aff;
+    padding: 8px;
+    border-radius: 5px;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.settings-panel input[type="checkbox"] {
+    margin-bottom: 10px;
+}
+.settings-panel select {
+ background-color: var(--container-bg-color);
+ color: var(--hover-color);
+    border: 1px solid var(--border-color);
+    padding: 8px;
+    border-radius: 5px;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.settings-panel button {
+    background-color: var(--button-background-color);
+    color: var(--button-text-color);
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    font-weight: bold;
+    width: 100%;
+    margin-top: 10px; /* Add some space */
+}
+
+.settings-panel button:hover {
+    background-color: #a0e6ff;
+    color: #1a2c3b;
+}
+
+/* Collapsible Settings Button */
+.settings-button {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    font-size: 2em;
+    color: var(--link-color);
+    background: none;
+    border: none;
+    cursor: pointer;
+    z-index: 1001;
+}
+
+.settings-panel.collapsed {
+.favorite-button {
+    position: absolute;
+    top: 10px;
+    right: 40px;
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    color: #ffc107; /* Gold color for the star */
+    cursor: pointer;
+    z-index: 1;
+}
+
+.favorite-button.active {
+    text-shadow: 0 0 5px #ffc107;
+}
+
+/* Custom Game Input */
+ #custom-game-input {
+    margin-top: 10px;
+     display: none;
+}
+#custom-game-input label {
+
+    display: block;
+    margin-bottom: 5px;
+    color: #a0e6ff;
+}
+
+#custom-game-input input[type="file"] {
+   background-color: #1a2c3b;
+    color: var(--hover-color);
+    border: 1px solid #5c8aff;
+    padding: 8px;
+    border-radius: 5px;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+/* Remove Button Style */
+.remove-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    color: #ff4444; /* Red color for remove */
+    cursor: pointer;
+    z-index: 1;
+}
+
+/* Context Menu Styles */
+.context-menu {
+    position: absolute;
+    background-color: var(--container-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    z-index: 100;
+    display: none;
+    padding: 5px 0;
+    min-width: 150px;
+}
+
+.context-menu ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.context-menu li {
+    padding: 8px 15px;
+    color: var(--hover-color);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.context-menu li:hover {
+    background-color: #0d1a25;
+}
+
+/* Popup Styles */
+.description-popup {
+    display: none; /* Hidden by default */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7); /* Dark overlay */
+    z-index: 1000; /* On top of everything */
+    justify-content: center;
+    align-items: center;
+}
+
+.popup-content {
+    background-color: var(--container-bg-color);
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    padding: 30px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    max-width: 500px;
+    color: #e0e0e0;
+    position: relative; /* For close button positioning */
+}
+
+.popup-content h2 {
+    color: var(--link-color);
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.popup-content p {
+    margin-bottom: 20px;
+}
+
+.popup-close-button {
+    position: absolute;
+top: 10px;
+    right: 10px;
+    background: none;
+    border: none;    font-size: 1.5em;
+    color: #e0e0e0;
+    cursor: pointer;
+}

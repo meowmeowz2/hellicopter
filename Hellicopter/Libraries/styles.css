@@ -1,0 +1,83 @@
+@import "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap";
+
+:root {
+    --bs-blue: #0079F2; --bs-indigo: #795EFF; --bs-purple: #A64DFF; --bs-pink: #D4359F;
+    --bs-red: #FF6666; --bs-orange: #AD5700; --bs-yellow: #967D00; --bs-green: #6CD97E;
+    --bs-teal: #0093B0; --bs-cyan: #27B9D6; --bs-black: #0E1525; --bs-white: #FCFCFC;
+    --bs-gray: #4E5569; --bs-gray-dark: #2B3245; --bs-gray-100: #F5F9FC; --bs-gray-200: #C2C8CC;
+    --bs-gray-300: #9DA6BB; --bs-gray-400: #70788C; --bs-gray-500: #5F677A; --bs-gray-600: #4E5569;
+    --bs-gray-700: #3C445C; --bs-gray-800: #2B3245; --bs-gray-900: #1C2333; --bs-primary: #795EFF;
+    --bs-secondary: #9DA6BB; --bs-success: #6CD97E; --bs-info: #27B9D6; --bs-warning: #967D00;
+    --bs-danger: #FF6666; --bs-light: #F5F9FC; --bs-dark: #1C2333; 
+
+    --bs-border-color: #9DA6BB; --bs-border-radius: 3px; --bs-font-sans-serif: "IBM Plex Sans", sans-serif;
+    --bs-body-font-family: var(--bs-font-sans-serif); --bs-body-color: #F5F9FC; --bs-body-bg: #1C2333;
+}
+
+[data-bs-theme=dark] {
+    color-scheme: dark; --bs-body-color: #F5F9FC; --bs-body-bg: #1C2333;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; font-family: var(--bs-body-font-family); font-size: 1rem; color: var(--bs-body-color); background-color: var(--bs-body-bg); }
+h1, h2, h3, h4, h5, h6 { margin-bottom: .5rem; font-weight: 500; line-height: 1.2; }
+h1 { font-size: calc(1.375rem + 1.5vw); }
+h2 { font-size: calc(1.325rem + .9vw); }
+h3 { font-size: calc(1.3rem + .6vw); }
+h4 { font-size: calc(1.275rem + .3vw); }
+h5 { font-size: 1.25rem; }
+h6 { font-size: 1rem; }
+p { margin-bottom: 1rem; }
+ul, ol { padding-left: 2rem; margin-bottom: 1rem; }
+ol ol, ul ul { margin-bottom: 0; }
+blockquote { margin: 0 0 1rem; }
+b, strong { font-weight: bolder; }
+hr { color: inherit; border: 0; opacity: .25; }
+
+a { color: var(--bs-blue); text-decoration: underline; }
+a:hover { color: rgba(var(--bs-blue), .8); }
+
+.container, .container-fluid { width: 100%; padding: 0 1.5rem; margin-right: auto; margin-left: auto; }
+
+.row { 
+    display: flex; flex-wrap: wrap; margin: -0.5rem; 
+}
+
+.col { 
+    flex: 1 0 0%; padding: 0 1.5rem; 
+}
+
+@media (min-width: 576px) {
+    .col-sm-1 { width: 8.33%; } 
+}
+
+@media (min-width: 768px) {
+    .col-md-2 { width: 16.67%; } 
+}
+@media (min-width: 992px) {
+    .col-lg-3 { width: 25%; } 
+}
+@media (min-width: 1200px) {
+    .col-xl-4 { width: 33.33%; } 
+}
+@media (min-width: 1400px) {
+    .col-xxl-5 { width: 41.67%; } 
+}
+
+.table { width: 100%; margin-bottom: 1rem; border-spacing: 0; }
+.table > * { padding: .75rem; border-top: 1px solid var(--bs-border-color); }
+.table > thead > tr > th { border-bottom: 2px solid var(--bs-border-color); color: var(--bs-body-color); }
+.table-striped > tbody > tr:nth-of-type(odd) { background-color: rgba(var(--bs-body-color), .05); }
+
+.form-control, .form-select { 
+    display: block; width: 100%; padding: .375rem .75rem; border: 1px solid var(--bs-border-color); 
+}
+
+.btn { 
+    display: inline-block; padding: .375rem .75rem; border-radius: .25rem; transition: 0.15s; 
+}
+
+.btn-primary { background-color: var(--bs-blue); color: #fff; }
+.btn-secondary { background-color: var(--bs-secondary); color: #fff; }
+
+/* More styles omitted for brevity */

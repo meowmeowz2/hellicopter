@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Factory Game</title>
+    <link rel="stylesheet" href="Factory/style.css">
+    <link rel="icon" type="image/png" href="Favicons/factory.png" sizes="16x16" />
+</head>
+<body>
+    <h1>Factory Game</h1>
+    <button id="toggleButton">Show Recipes</button><br><br>
+    <div id="toggleSection">
+    <p>Recipes:</p>
+    <p class="section">Compacted part: 1 metal part <br><br>
+    Wire: 1 metal part <br><br>
+    Basic Circuit: 2 Compacted parts, 3 wires <br><br>
+    Simple robot: 1 compacted part, 5 basic circuits <br><br>
+    Advanced robot: 3 Simple robots, 2 advanced circuits <br><br>
+    Quantum processor: 5 Advanced Robots, 10 High-Grade Processors <br><br>
+    High-Grade Processor: 4 Metal Parts, 2 Basic Circuits <br><br>
+    Advanced Circuit: 2 Wires, 3 Basic Circuits <br><br></p><br></div><br>
+    
+
+    <div id="game-state" class="section">
+        <h2>Game State</h2>
+        <p>Money: <span id="money">10000</span></p>
+        <h3>Machines</h3>
+        <ul id="machines">
+            <li>Assembly Machine: <span data-machine="Assembly Machine">0</span>
+                <div class="progress-bar-container"><div class="progress-bar" data-machine-progress="Assembly Machine" style="width: 0%;"></div></div>
+            </li>
+            <li>Compactor: <span data-machine="Compactor">0</span>
+                <div class="progress-bar-container"><div class="progress-bar" data-machine-progress="Compactor" style="width: 0%;"></div></div>
+            </li>
+            <li>Wire Maker: <span data-machine="Wire Maker">0</span>
+                <div class="progress-bar-container"><div class="progress-bar" data-machine-progress="Wire Maker" style="width: 0%;"></div></div>
+            </li>
+            <li>Circuit Fabricator: <span data-machine="Circuit Fabricator">0</span>
+                <div class="progress-bar-container"><div class="progress-bar" data-machine-progress="Circuit Fabricator" style="width: 0%;"></div></div>
+            </li>
+            <li>Robotics Assembler: <span data-machine="Robotics Assembler">0</span>
+                <div class="progress-bar-container"><div class="progress-bar" data-machine-progress="Robotics Assembler" style="width: 0%;"></div></div>
+            </li>
+            <li>Advanced Robotics Factory: <span data-machine="Advanced Robotics Factory">0</span>
+                <div class="progress-bar-container"><div class="progress-bar" data-machine-progress="Advanced Robotics Factory" style="width: 0%;"></div></div>
+            </li>
+            <li>Quantum Computer Plant: <span data-machine="Quantum Computer Plant">0</span>
+                <div class="progress-bar-container"><div class="progress-bar" data-machine-progress="Quantum Computer Plant" style="width: 0%;"></div></div>
+            </li>
+            <li>Processor Foundry: <span data-machine="Processor Foundry">0</span>
+                <div class="progress-bar-container"><div class="progress-bar" data-machine-progress="Processor Foundry" style="width: 0%;"></div></div>
+            </li>
+            <li>Advanced Circuit Lab: <span data-machine="Advanced Circuit Lab">0</span>
+                <div class="progress-bar-container"><div class="progress-bar" data-machine-progress="Advanced Circuit Lab" style="width: 0%;"></div></div>
+            </li>
+        </ul>
+        <h3>Items</h3>
+        <ul id="items">
+            <li>Metal Part: <span data-item="Metal Part">0</span></li>
+            <li>Compacted Part: <span data-item="Compacted Part">0</span></li>
+            <li>Wire: <span data-item="Wire">0</span></li>
+            <li>Basic Circuit: <span data-item="Basic Circuit">0</span></li>
+            <li>Simple Robot: <span data-item="Simple Robot">0</span></li>
+            <li>Advanced Robot: <span data-item="Advanced Robot">0</span></li>
+            <li>Quantum Processor: <span data-item="Quantum Processor">0</span></li>
+            <li>High-Grade Processor: <span data-item="High-Grade Processor">0</span></li>
+            <li>Advanced Circuit: <span data-item="Advanced Circuit">0</span></li>
+        </ul>
+    </div>
+
+    <div id="actions" class="section">
+        <h2>Actions</h2>
+        <h3>Buy Machines</h3>
+        <div id="buy-machines">
+            <button data-action="buy" data-machine="Assembly Machine" data-cost="1000">Buy Assembly Machine ($1000)</button>
+            <button data-action="buy" data-machine="Compactor" data-cost="1500">Buy Compactor ($1500)</button>
+            <button data-action="buy" data-machine="Wire Maker" data-cost="2000">Buy Wire Maker ($2000)</button>
+            <button data-action="buy" data-machine="Circuit Fabricator" data-cost="2500">Buy Circuit Fabricator ($2500)</button>
+            <button data-action="buy" data-machine="Robotics Assembler" data-cost="3000">Buy Robotics Assembler ($3000)</button>
+            <button data-action="buy" data-machine="Advanced Robotics Factory" data-cost="5000">Buy Advanced Robotics Factory ($5000)</button>
+            <button data-action="buy" data-machine="Quantum Computer Plant" data-cost="15000">Buy Quantum Computer Plant ($15000)</button>
+            <button data-action="buy" data-machine="Processor Foundry" data-cost="10000">Buy Processor Foundry ($10000)</button>
+            <button data-action="buy" data-machine="Advanced Circuit Lab" data-cost="7000">Buy Advanced Circuit Lab ($7000)</button>
+        </div>
+
+        <h3>Produce Items</h3>
+        <button id="produce-button">Produce</button>
+
+        <h3>Sell Items</h3>
+        <div id="sell-items">
+            <button data-action="sell" data-item="Metal Part" data-price="5">Sell Metal Part ($5)</button>
+            <button data-action="sell" data-item="Compacted Part" data-price="7">Sell Compacted Part ($7)</button>
+            <button data-action="sell" data-item="Wire" data-price="10">Sell Wire ($10)</button>
+            <button data-action="sell" data-item="Basic Circuit" data-price="30">Sell Basic Circuit ($30)</button>
+            <button data-action="sell" data-item="Simple Robot" data-price="100">Sell Simple Robot ($100)</button>
+            <button data-action="sell" data-item="Advanced Robot" data-price="450">Sell Advanced Robot ($450)</button>
+            <button data-action="sell" data-item="Quantum Processor" data-price="1000">Sell Quantum Processor ($1000)</button>
+            <button data-action="sell" data-item="High-Grade Processor" data-price="800">Sell High-Grade Processor ($800)</button>
+        </div>
+    </div>
+
+    <div id="message-area"></div>
+
+    <script src="Factory/script.js"></script>
+    <script>
+        const toggleButton = document.getElementById('toggleButton');
+        const toggleSection = document.getElementById('toggleSection');
+
+        toggleButton.addEventListener('click', function() {
+            if (toggleSection.style.display === 'none' || toggleSection.style.display === '') {
+                toggleSection.style.display = 'block';  // Show the section
+                toggleButton.textContent = 'Hide Recipes';  // Change button text
+            } else {
+                toggleSection.style.display = 'none';  // Hide the section
+                toggleButton.textContent = 'Show Recipes';  // Change button text
+            }
+        });
+    </script>
+</body>
+</html>

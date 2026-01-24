@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cursor Clicker 2 (Beta)</title>
+    <link rel="icon" type="image/png" href="Favicons/cursor.png" sizes="16x16" />
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* General Styles */
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: url('cursor/bg.jpeg') #222 no-repeat center center fixed; /* Default background */
+            background-size: cover;
+            color: #eee;
+            margin: 0;
+            padding: 0;
+            position: relative;
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Improved Header and Footer */
+        header, footer {
+            width: 90%;
+            max-width: 1200px;
+            margin: 2rem 0;
+            padding: 1.5rem 2rem;
+            background: rgba(34, 34, 34, 0.9);
+            border-radius: 1rem;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            color: #fff;
+            text-shadow: 0 0.1rem 0.3rem rgba(0, 0, 0, 0.7);
+            letter-spacing: 0.1rem;
+            font-weight: 700;
+        }
+
+        /* Polished Container and Content Areas */
+        .container {
+            display: flex;
+            width: 90%;
+            max-width: 1200px;
+            margin: 0 auto 2rem;
+            padding: 0;
+        }
+
+        .main-content, .upgrades-content {
+            flex: 1;
+            padding: 2rem;
+            background: rgba(34, 34, 34, 0.9);
+            border-radius: 1rem;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5);
+        }
+
+        .main-content {
+            margin-right: 2rem;
+        }
+
+        /* Enhanced Typography */
+        h2 {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 1rem;
+            text-shadow: 0 0.1rem 0.2rem rgba(0, 0, 0, 0.5);
+        }
+
+        h3 {
+            font-size: 1.4rem;
+            color: #ddd;
+            margin-bottom: 0.8rem;
+        }
+
+        p {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: #ccc;
+        }
+
+        /* Sleek Buttons and Click Area */
+        button, .click-btn {
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            cursor: pointer;
+            margin-top: 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 0.3rem 0.7rem rgba(0, 0, 0, 0.4);
+            outline: none; /* Remove the outline on focus */
+        }
+
+        button:hover, .click-btn:hover {
+            transform: translateY(-0.2rem);
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5);
+        }
+
+        /* Stylish Click Button */
+        .click-btn {
+            background: url('cursor/cursor.png') no-repeat center;
+            background-size: contain;
+            width: 120px;
+            height: 120px;
+            display: block;
+            margin: 2rem auto; /* Center the button */
+            border-radius: 50%;
+            box-shadow: 0 0.4rem 0.8rem rgba(0, 0, 0, 0.5);
+        }
+
+        .level2 .click-btn {
+            background: url('cursor/cursor2.png') no-repeat center;
+            background-size: contain;
+        }
+
+        .click-effect {
+            animation: clickAnim 0.2s forwards;
+        }
+
+        @keyframes clickAnim {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(0.9); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Refined Grid Layout */
+        .grid {
+            display: grid;
+            gap: 0.75rem; /* Reduce gap */
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); /* Adjust minmax */
+        }
+
+        /* Elevated Upgrade and Achievement Styles */
+        .upgrade, .achievement {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.75rem; /* Reduced padding */
+            border-radius: 0.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            text-align: center; /* Center the content */
+        }
+
+        .upgrade:hover, .achievement:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-0.1rem);
+            box-shadow: 0 0.3rem 0.6rem rgba(0, 0, 0, 0.4);
+        }
+
+        /* Modern Prestige Area */
+        .prestige {
+            margin-top: 3rem;
+            text-align: center;
+        }
+
+        .prestige button {
+            background-color: #c0392b;
+            color: white;
+            padding: 1.2rem 2.5rem;
+            border-radius: 0.6rem;
+        }
+
+        .prestige button:hover {
+            background-color: #e74c3c;
+        }
+
+        /* Refreshed Reset Button */
+        .reset-button {
+            background-color: #27ae60;
+            color: white;
+        }
+
+        .reset-button:hover {
+            background-color: #2ecc71;
+        }
+
+        /* Dynamic Cursor Pop-up & Floating Text */
+        .cursor-pop-up {
+            position: absolute;
+            width: 40px;
+            height: 40px; /* Corrected height value */
+            background: url('cursor/cursor.png') no-repeat center;
+            background-size: contain;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none; /* Make sure it doesn't interfere with clicks */
+        }
+
+        .level2 .cursor-pop-up {
+            background: url('cursor/cursor2.png') no-repeat center;
+            background-size: contain;
+        }
+
+        .floating-text {
+            position: absolute;
+            pointer-events: none;
+            animation: floatText 1s forwards;
+            color: #f1c40f;
+            font-size: 1.3rem;
+            font-weight: 600;
+            text-shadow: 0 0.1rem 0.3rem rgba(0, 0, 0, 0.7);
+        }
+
+        @keyframes floatText {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-70px); opacity: 0; }
+        }
+
+        /* Level 2 - Darker and More Intense */
+        body.level2 {
+            background: url('cursor/bg2.jpeg') #111 no-repeat center center fixed;
+            background-size: cover;
+        }
+
+        /* Media Queries for Enhanced Responsiveness */
+        @media (max-width: 992px) {
+            .container {
+                flex-direction: column;
+            }
+            .main-content {
+                margin-right: 0;
+                margin-bottom: 2rem;
+            }
+            .grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+            header h1 {
+                font-size: 2.5rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            header, footer {
+                padding: 1rem;
+            }
+        }
+
+        /* Compact Upgrade Styling */
+        #upgradePages {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .upgradePage {
+            display: none; /* Initially Hide All Pages */
+            /* Removed: gap: 0.75rem; */
+            width: 100%;
+            max-width: 300px; /* Reduced max-width */
+            margin: 0 auto; /* Center each upgrade */
+        }
+
+        .upgradePage.active {
+            display: grid; /* Show Active Page */
+        }
+
+        .upgradeNavLink {
+            padding: 0.5rem 1rem;
+            background-color: #555;
+            color: #fff;
+            border: none;
+            border-radius: 0.3rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .upgradeNavLink:hover {
+            background-color: #777;
+        }
+
+        /* Upgrade Styling Adjustments */
+        .upgrade {
+            padding: 1rem; /* Reduced padding */
+            border-radius: 0.5rem; /* Smaller border radius */
+        }
+
+        /* Cutscene Styles */
+        .cutscene {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1001; /* Above debug menu */
+            flex-direction: column;
+            text-align: center;
+            font-size: 2rem;
+        }
+
+        .cutscene-content {
+            padding: 2rem;
+            border-radius: 1rem;
+            background-color: rgba(34, 34, 34, 0.9);
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5);
+        }
+
+        body.cutscene-active {
+            pointer-events: none; /* Disable interactions during cutscene */
+            overflow: hidden; /* Prevent scrolling */
+        }
+    </style>
+    <script>
+
+
+    </script>
+</head>
+<body>
+    <header>
+        <h1>Cursor Clicker 2</h1>
+        <p>Click, upgrade, prestige — Who knows what lies ahead?</p>
+    </header>
+
+    <div class="container">
+        <div class="main-content">
+            <h2>Points: <span id="score">0</span></h2>
+            <h3>Click Power: <span id="clickPower">1</span> | Prestige Bonus: <span id="prestigeBonus">1x</span></h3>
+            <button class="click-btn" id="click-button" onclick="handleClick()"></button>
+
+            <div class="prestige">
+                <h3>Prestige</h3>
+                <p>Reset for permanent +1x point multiplier. Requires 10,000 points.</p>
+                <button onclick="prestige()">Prestige Now</button>
+                <p id="nextPrestigeBonus">Next Prestige Bonus: +1x</p>
+            </div>
+
+            <section id="achievements">
+                <h3>Achievements</h3>
+                <div class="grid" id="achievementList"></div>
+            </section>
+
+            <button class="reset-button" onclick="resetGame()">Reset Game</button>
+        </div>
+
+        <div class="upgrades-content">
+            <h2>Upgrades</h2>
+            <div id="upgradePages"></div>
+            <div style="text-align: center;">
+                <button class="upgradeNavLink" onclick="prevUpgradePage()">Previous</button>
+                <button class="upgradeNavLink" onclick="nextUpgradePage()">Next</button>
+            </div>
+        </div>
+    </div>
+
+
+    <footer>
+        <p> &copy;2025 Hellicopter Games</p>
+    </footer>
+
+    <div id="cutscene" class="cutscene" style="display: none;">
+        <div class="cutscene-content">
+            <p id="cutscene-text"></p>
+        </div>
+    </div>
+
+
+    <script>
+    let score = 0;
+    let clickPower = 1;
+    let prestigeLevel = 0;
+    let upgrades = [];
+    let achievements = [];
+    let currentPage = 0; // Keep track of the current page
+
+    const scoreEl = document.getElementById("score");
+    const clickPowerEl = document.getElementById("clickPower");
+    const prestigeBonusEl = document.getElementById("prestigeBonus");
+    const upgradesEl = document.getElementById("upgradePages");
+    const achievementList = document.getElementById("achievementList");
+    const clickButton = document.getElementById("click-button");
+    const nextPrestigeBonusEl = document.getElementById("nextPrestigeBonus");
+    const body = document.body;
+    const cutsceneEl = document.getElementById('cutscene');
+    const cutsceneTextEl = document.getElementById('cutscene-text');
+
+    const SAVE_KEY = "cursorClickerSaveData2";
+    
+
+    const baseUpgradeDefs = [
+        { name: "Finger Workout", type: "click", value: 1, cost: 50 },
+        { name: "Idle Assistant", type: "auto", value: 1, cost: 75 },
+        { name: "Steel Index", type: "click", value: 2, cost: 100 },
+        { name: "Background Bot", type: "auto", value: 3, cost: 200 },
+        { name: "Magic Tap", type: "click", value: 4, cost: 200 },
+        { name: "Robo Clicker", type: "auto", value: 5, cost: 400 },
+        { name: "Quantum Cursor", type: "click", value: 7, cost: 400 },
+        { name: "Factory Line", type: "auto", value: 10, cost: 800 },
+        { name: "Supercharged Swipe", type: "click", value: 10, cost: 800 },
+        { name: "Quantum Drone", type: "auto", value: 15, cost: 1500 },
+        { name: "Nano Touch", type: "click", value: 15, cost: 1600 },
+        { name: "Time Machine", type: "auto", value: 25, cost: 3000 },
+        { name: "Dimensional Click", type: "click", value: 25, cost: 3000 },
+        { name: "AI Overseer", type: "auto", value: 40, cost: 5000 },
+        { name: "Time Loop Tapper", type: "click", value: 40, cost: 5000 },
+        { name: "Galactic Engine", type: "auto", value: 60, cost: 8000 },
+        { name: "Clickstorm Burst", type: "click", value: 60, cost: 7500 },
+        { name: "Dark Matter Miner", type: "auto", value: 90, cost: 11000 },
+        { name: "Infinity Touch", type: "click", value: 100, cost: 10000 },
+        { name: "Cosmic Core", type: "auto", value: 150, cost: 15000 }
+    ];
+
+    const level2UpgradeDefs = [
+        { name: "HyperFinger", type: "click", value: 50, cost: 5000 },
+        { name: "Laser Pointer", type: "auto", value: 150, cost: 20000 },
+        { name: "Darklight swipe", type: "click", value: 200, cost: 45000 },
+        { name: "Endless bots", type: "auto", value: 200, cost: 65000 },
+        { name: "Tap dancing", type: "click", value: 300, cost: 100000 },
+        { name: "Machine Clicker", type: "auto", value: 350, cost: 120000 },
+        { name: "Universal Cursor", type: "click", value: 500, cost: 150000 },
+        { name: "Parallel lines", type: "auto", value: 500, cost: 160000 },
+		{ name: "Time Bending Cursor", type: "click", value: 1200, cost: 180000 },
+        { name: "Multiverse Clicker", type: "auto", value: 1200, cost: 200000 },
+		{ name: "Reality Ripper", type: "click", value: 1500, cost: 250000, },
+        { name: "Quantum Overloader", type: "auto", value: 1500, cost: 300000 },
+		{ name: "Chrono Compressor", type: "click", value: 1750, cost: 1000000 },
+        { name: "Singularity Engine", type: "auto", value: 1750, cost: 1000000 }
+    ];
+    
+    const achievementDefs = [
+        { id: "first_click", name: "First Click", check: () => score > 0 },
+        { id: "first_upgrade", name: "First Upgrade", check: () => upgrades.length > 0 && upgrades.some(u => u.level > 0) },
+        { id: "hundred_points", name: "100 Points", check: () => score >= 100 },
+        { id: "ten_k_points", name: "10,000 Points", check: () => score >= 10000 },
+        { id: "first_prestige", name: "First Prestige", check: () => prestigeLevel >= 1 },
+        { id: "million_points", name: "1,000,000 Points", check: () => score >= 1000000 },
+        { id: "level_five_upgrade", name: "Level 5 Upgrade", check: () => upgrades.length > 0 && upgrades.some(u => u.level >= 5) },
+        { id: "level_ten_upgrade", name: "Level 10 Upgrade", check: () => upgrades.length > 0 && upgrades.some(u => u.level >= 10) },
+        { id: "first_auto_upgrade", name: "First Auto Upgrade", check: () => upgrades.length > 0 && upgrades.some(u => u.type === "auto" && u.level > 0) },
+        { id: "all_upgrades", name: "Got All Upgrades", check: () => upgrades.length > 0 && upgrades.every(u => u.level > 0) },
+        { id: "prestige_three_times", name: "Prestiged 3 Times", check: () => prestigeLevel >= 3 },
+        { id: "fifty_k_points", name: "50,000 Points", check: () => score >= 50000 },
+        { id: "hundred_upgrades", name: "100 Total Upgrades", check: () => upgrades.reduce((sum, u) => sum + u.level, 0) >= 100 },
+		{ id: "master_clicker", name: "Master Clicker", check: () => clickPower >= 500 },
+        { id: "expert_clicker", name: "Expert Clicker", check: () => clickPower >= 750 },
+        { id: "pro_clicker", name: "Pro Clicker", check: () => clickPower >= 900 },
+        { id: "space_clicker", name: "Cosmic Clicker", check: () => score >= 500000 },
+        { id: "ultra_cursor", name: "Ultra Cursor", check: () => clickPower >= 1000}
+    ];
+
+    function handleClick() {
+        const clickValue = clickPower * (1 + prestigeLevel);
+        score += clickValue;
+        updateUI();
+        saveGame();
+        triggerClickEffect();
+        createCursorPopUp();
+        createFloatingText(clickValue);
+    }
+
+    function createFloatingText(value) {
+        const clickButtonRect = clickButton.getBoundingClientRect();
+        const x = clickButtonRect.left + (clickButtonRect.width / 2) - 25; // Center the text horizontally above the button
+        const y = clickButtonRect.top - 30; // Position it 30px above the button
+    
+        const floatingText = document.createElement("div");
+        floatingText.className = 'floating-text';
+        floatingText.style.left = `${x}px`;
+        floatingText.style.top = `${y}px`;
+        floatingText.textContent = `+${Math.floor(value)}`;
+        document.body.appendChild(floatingText);
+    
+        // Remove the floating text after the animation ends
+        floatingText.addEventListener('animationend', () => {
+            floatingText.remove();
+        });
+    }
+    
+    function createCursorPopUp() {
+        const clickButtonRect = clickButton.getBoundingClientRect();
+        const offsetX = (Math.random() * 700) - 100;
+        const offsetY = (Math.random() * 700) - 100;
+        const x = clickButtonRect.left + (clickButtonRect.width / 2) + offsetX;
+        const y = clickButtonRect.top - 50 + offsetY;
+    
+        const cursorPopUp = document.createElement("div");
+        cursorPopUp.className = "cursor-pop-up";
+        cursorPopUp.style.left = `${x}px`;
+        cursorPopUp.style.top = `${y}px`;
+        document.body.appendChild(cursorPopUp);
+    
+        cursorPopUp.style.opacity = 1; 
+    
+        setTimeout(() => {
+            cursorPopUp.style.opacity = 0;
+            setTimeout(() => {
+                cursorPopUp.remove();
+            }, 300); 
+        }, 1500); 
+    }
+    function triggerClickEffect() {
+        clickButton.classList.add('click-effect');
+        setTimeout(() => {
+            clickButton.classList.remove('click-effect');
+        }, 200);
+    }
+    
+    function updateUI() {
+        scoreEl.textContent = Math.floor(score);
+        clickPowerEl.textContent = clickPower;
+        prestigeBonusEl.textContent = `${1 + prestigeLevel}x`;
+        nextPrestigeBonusEl.textContent = `Next Prestige Bonus: +${prestigeLevel + 1}x`;
+        checkAchievements();
+    }
+    
+   function buyUpgrade(index) {
+    const upg = upgrades[index];
+    console.log("currentPage before buy:", currentPage);
+    if (score >= upg.cost) {
+        score -= upg.cost;
+        upg.level++;
+        upg.cost = Math.floor(upg.cost * 1.5); // Increase the cost for next purchase
+
+        if (upg.type === "click") {
+            clickPower += upg.value; // Increment click power for click upgrades
+        } else if (upg.type === "auto") {
+            // Add +1x multiplier for each additional purchase of auto upgrade
+            upg.multiplier = (upg.multiplier || 1) + 1;
+            startAutoUpgrade(upg);
+            console.log("currentPage after buy:", currentPage);
+        }
+        updateUI();
+        renderUpgrades(); // Re-render upgrades to reflect updated costs and levels
+        saveGame();
+    }
+}
+    
+ function startAutoUpgrade(upgrade) {
+    clearInterval(upgrade.interval); // Clear any existing interval
+
+    // Initialize multiplier if it doesn't exist
+    upgrade.multiplier = upgrade.multiplier || 1;
+
+    upgrade.interval = setInterval(() => {
+        if (upgrade.level > 0) {
+            // Calculate the score increase based on upgrade level, base value, prestige bonus, and multiplier.
+            const scoreIncrease = (upgrade.value * upgrade.level) * (1 + prestigeLevel) * upgrade.multiplier;
+            score += scoreIncrease;
+            createCursorPopUp();
+            triggerClickEffect();
+            updateUI();
+            saveGame();
+        }
+    }, 1000); // 1000 ms = 1 second
+}
+    
+    function prestige() {
+        if (score >= 10000) {
+            score = 0;
+            clickPower = 1;
+            if (prestigeLevel === 9) {
+                triggerLevel2Cutscene();
+            }
+            prestigeLevel++;
+            upgrades.forEach(u => {
+                u.level = 0;
+                u.cost = u.baseCost;
+                if (u.interval) {
+                    clearInterval(u.interval);
+                    delete u.interval;
+                }
+            });
+            updateUI();
+            renderUpgrades();
+            saveGame();
+        } else {
+            alert("You need 10,000 points to prestige.");
+        }
+    }
+
+    function triggerLevel2Cutscene() {
+        cutsceneEl.style.display = 'flex';
+        cutsceneTextEl.textContent = "Your cursor has grown too powerful...";
+        body.classList.add('cutscene-active'); // Prevent clicking during cutscene
+
+        setTimeout(() => {
+            cutsceneTextEl.textContent = "It's reached... the Developer Planet!";
+        }, 3000); // Show next text after 3 seconds
+
+        setTimeout(() => {
+            cutsceneEl.style.display = 'none';
+            body.classList.remove('cutscene-active');
+            score = 0;
+            clickPower = 1;
+            prestigeLevel++;
+            body.classList.add('level2'); // ADD LEVEL 2 BODY CLASS HERE
+
+            upgrades.forEach(u => {
+                u.level = 0;
+                u.cost = u.baseCost;
+                if (u.interval) {
+                    clearInterval(u.interval);
+                    delete u.interval;
+                }
+            });
+
+            renderUpgrades();
+            updateUI();
+            saveGame();
+        }, 6000); // Hide cutscene and apply level 2 logic after 6 seconds
+    }
+
+   function renderUpgrades() {
+    const upgradePagesEl = document.getElementById("upgradePages");
+    
+    
+    // Explicitly remove all child nodes to prevent stacking
+ while (upgradePagesEl.firstChild) {
+ upgradePagesEl.removeChild(upgradePagesEl.firstChild);
+ }
+
+    const upgradesPerPage = 1; // Only 1 upgrade per page
+
+    const upgradeDefsToUse = prestigeLevel >= 10 ? level2UpgradeDefs : baseUpgradeDefs;
+
+    // Ensure upgrades array is correctly initialized based on prestige level
+    if (upgrades.length === 0 || upgrades[0].baseCost !== upgradeDefsToUse[0].cost) {
+        upgrades = upgradeDefsToUse.map(u => ({
+            ...u,
+            level: 0,
+            cost: u.cost,
+            baseCost: u.baseCost,
+            interval: null, // Ensure interval is cleared
+            multiplier: 1 // Initialize multiplier
+        }));
+    }
+
+    const numPages = Math.ceil(upgrades.length / upgradesPerPage);
+
+    for (let i = 0; i < numPages; i++) {
+        const upgradePage = document.createElement("div");
+        upgradePage.className = "upgradePage";
+ upgradePage.style.display = 'none'; // Initially hide all pages
+ upgradePage.style.gridTemplateColumns = '1fr'; // Set to single column
+        if (i === 0) {
+            upgradePage.classList.add("active");
+        }
+
+        const start = i * upgradesPerPage;
+        const end = start + upgradesPerPage;
+        const pageUpgrades = upgrades.slice(start, end);
+
+        pageUpgrades.forEach((u, index) => {
+            const upgradeIndex = start + index; // Calculate global upgrade index
+            const div = document.createElement("div");
+            div.className = "upgrade";
+            div.innerHTML = `
+                <h4>${u.name}</h4>
+                <p>Type: ${u.type} | Level: ${u.level}</p>
+                <p>Effect: +${u.value} ${u.type === "click" ? "click power" : "pts/sec"}</p>
+                ${u.type === "auto" ? `<p>Multiplier: ${u.multiplier}x</p>` : ''}
+                <button onclick="buyUpgrade(${upgradeIndex})">Buy for ${u.cost}</button>
+            `;
+            upgradePage.appendChild(div);
+        });
+        upgradePagesEl.appendChild(upgradePage);
+
+        // Explicitly control display based on currentPage
+        const allUpgradePages = upgradePagesEl.querySelectorAll(".upgradePage");
+        allUpgradePages.forEach((page, index) => {
+            if (index === currentPage) {
+                page.style.display = 'grid';
+            } else {
+                page.style.display = 'none';
+            }
+        });
+    }
+        //Update body/click-button style
+        
+        if(prestigeLevel >= 10){
+            body.classList.add('level2');
+        } else{
+            body.classList.remove('level2');
+        }
+}
+
+function prevUpgradePage() {
+    const upgradePages = document.querySelectorAll(".upgradePage");
+    upgradePages[currentPage].classList.remove("active");
+    currentPage = (currentPage - 1 + upgradePages.length) % upgradePages.length;
+    upgradePages[currentPage].classList.add("active");
+}
+    
+function nextUpgradePage() {
+    const upgradePages = document.querySelectorAll(".upgradePage");
+    upgradePages[currentPage].classList.remove("active");
+    currentPage = (currentPage + 1) % upgradePages.length;
+    upgradePages[currentPage].classList.add("active");
+}
+    
+   function checkAchievements() {
+    achievementDefs.forEach(a => {
+        if (!achievements.includes(a.id) && a.check()) {
+            achievements.push(a.id);
+            renderAchievements();
+            saveGame();
+            alert("Achievement Unlocked: " + a.name);
+        }
+    });
+}
+    
+    function renderAchievements() {
+    achievementList.innerHTML = "";
+    achievementDefs.forEach(a => {
+        const unlocked = achievements.includes(a.id);
+        const div = document.createElement("div");
+        div.className = "achievement";
+        div.innerHTML = `<strong>${unlocked ? "&#x2705;" : "&#x274C;"} ${a.name}</strong>`; /* Condensed */
+        achievementList.appendChild(div);
+    });
+}
+    
+   function saveGame() {
+    const saveObject = {
+        score: score,
+        clickPower: clickPower,
+        prestigeLevel: prestigeLevel,
+        upgrades: upgrades.map(u => ({
+            name: u.name, // Save the upgrade name for matching
+            level: u.level,
+            cost: u.cost,
+            baseCost: u.baseCost,
+            multiplier: u.multiplier || 1 // Ensure multiplier is saved
+        })),
+        achievements: achievements
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(saveObject));
+}
+    
+  function loadGame() {
+    const data = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (data) {
+        score = data.score || 0;
+        clickPower = data.clickPower || 1;
+        prestigeLevel = data.prestigeLevel || 0;
+        achievements = data.achievements || [];
+        currentPage = data.currentPage || 0; // Load the current page
+
+        const upgradeDefsToUse = prestigeLevel >= 10 ? level2UpgradeDefs : baseUpgradeDefs;
+
+ upgrades = upgradeDefsToUse.map((def) => {
+ const savedUpgrade = data.upgrades.find(saved => saved.name === def.name);
+            return {
+                ...def,
+                level: savedUpgrade?.level || 0,
+ cost: savedUpgrade?.cost !== undefined ? savedUpgrade.cost : def.cost, // Use saved cost if available, otherwise use definition cost
+ baseCost: def.cost, // Always use the base cost from the definition
+                interval: null, // Reset interval on load
+                multiplier: savedUpgrade?.multiplier || 1 // Load multiplier or default to 1
+            };
+        }).filter(upgrade => upgrade !== null); // Filter out any null entries if save data doesn't match current definitions
+
+
+        // Restart auto upgrades
+        upgrades.forEach(u => {
+            if (u.type === "auto" && u.level > 0) {
+                startAutoUpgrade(u);
+            }
+        });
+
+        updateUI();
+        renderUpgrades();
+            renderAchievements();
+    } else {
+        // Initialize upgrades if no saved data
+        const upgradeDefsToUse = prestigeLevel >= 10 ? level2UpgradeDefs : baseUpgradeDefs;
+            upgrades = upgradeDefsToUse.map(u => ({
+ ...u, // Spread the properties from the definition
+                level: 0,
+                baseCost: u.cost,
+                cost: u.cost,
+                interval: null,
+                multiplier: 1
+            }));
+            renderUpgrades(); // Render upgrades after initialization
+    }
+        //Update body/click-button style
+        if(prestigeLevel >= 10){
+            body.classList.add('level2');
+        } else{
+            body.classList.remove('level2');
+        }
+}
+
+    function resetGame() {
+        score = 0;
+        clickPower = 1;
+        prestigeLevel = 0;
+    
+        upgrades.forEach(upgrade => {
+            upgrade.level = 0;
+            upgrade.cost = upgrade.baseCost;
+            if (upgrade.interval) {
+                clearInterval(upgrade.interval);
+                upgrade.interval = null;
+            }
+        });
+
+        // Resets the game to base upgrades
+        const upgradeDefsToUse = prestigeLevel >= 10 ? level2UpgradeDefs : baseUpgradeDefs;
+         upgrades = upgradeDefsToUse.map(u => ({
+                ...u,
+                level: 0,
+                baseCost: u.cost,
+                cost: u.cost,
+                interval: null,
+                multiplier: 1
+            }));
+    
+        achievements = [];
+    
+        updateUI();
+        renderUpgrades();
+        renderAchievements();
+        saveGame();
+    }
+
+    loadGame();
+    setInterval(saveGame, 5000);
+
+    // Initial calls after loading
+    updateUI();
+    renderUpgrades(); // Call renderUpgrades to initially populate upgrade pages
+
+    // Start auto-upgrades after initial load
+    upgrades.forEach(u => {
+        if (u.type === "auto" && u.level > 0) {
+            startAutoUpgrade(u);
+        }
+    });
+    </script>
+</body>
+</html>
