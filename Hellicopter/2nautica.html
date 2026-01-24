@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Subnautica 2D</title>
+    <title>Subnautica 2D - Survival Fix</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; }
@@ -14,6 +14,8 @@
         .stat-fill { height: 100%; transition: width 0.3s ease; }
         .inventory-slot { width: 50px; height: 50px; background: rgba(20, 40, 60, 0.7); border: 2px solid rgba(0, 255, 255, 0.2); border-radius: 4px; display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; }
         .inventory-slot.equipped { border-color: #0ff; background: rgba(0, 255, 255, 0.4); box-shadow: 0 0 10px rgba(0, 255, 255, 0.3); }
+        .inventory-slot.edible { border-color: #fb0; box-shadow: 0 0 5px rgba(251, 176, 0, 0.2); }
+        .inventory-slot.edible:hover { background: rgba(251, 176, 0, 0.3); }
         .equip-label { position: absolute; left: 60px; white-space: nowrap; font-size: 10px; color: rgba(0, 255, 255, 0.7); text-transform: uppercase; letter-spacing: 1px; pointer-events: none; }
         .crafting-btn { background: rgba(0, 255, 255, 0.1); border: 1px solid rgba(0, 255, 255, 0.4); color: #0ff; transition: all 0.2s; text-align: left; }
         .crafting-btn:hover:not(:disabled) { background: rgba(0, 255, 255, 0.3); }
@@ -35,43 +37,45 @@
     <!-- Top Bar: Stats -->
     <div class="flex flex-col gap-2 w-64">
         <div>
-            <div class="flex justify-between text-xs mb-1"><span>HEALTH</span><span id="health-val">100</span></div>
+            <div class="flex justify-between text-[10px] mb-1"><span>HEALTH</span><span id="health-val">100</span></div>
             <div class="stat-bar"><div id="health-bar" class="stat-fill bg-red-500" style="width: 100%"></div></div>
         </div>
         <div>
-            <div class="flex justify-between text-xs mb-1"><span>OXYGEN</span><span id="o2-val">45s</span></div>
+            <div class="flex justify-between text-[10px] mb-1"><span>HUNGER</span><span id="hunger-val">100</span></div>
+            <div class="stat-bar"><div id="hunger-bar" class="stat-fill bg-orange-400" style="width: 100%"></div></div>
+        </div>
+        <div>
+            <div class="flex justify-between text-[10px] mb-1"><span>OXYGEN</span><span id="o2-val">45s</span></div>
             <div class="stat-bar"><div id="o2-bar" class="stat-fill bg-blue-400" style="width: 100%"></div></div>
         </div>
     </div>
 
-    <!-- Left Side: Gear & Tools -->
-    <div class="absolute left-4 top-32 flex flex-col gap-4">
+    <!-- Equipment -->
+    <div class="absolute left-4 top-40 flex flex-col gap-4">
         <div class="text-[10px] text-cyan-500/50 uppercase tracking-widest font-bold mb-1">Equipment</div>
         <div id="equipment-panel" class="flex flex-col gap-3 pointer-events-auto"></div>
     </div>
 
-    <!-- Habitat Builder Popup -->
+    <!-- Builder Menu -->
     <div id="builder-menu" class="pointer-events-auto w-48">
         <div class="text-[10px] text-cyan-400 font-bold mb-2 uppercase">Build Menu</div>
         <div id="build-options" class="flex flex-col gap-2"></div>
     </div>
 
-    <!-- Bottom Left: Builder Tool Toggle -->
+    <!-- Builder Icon -->
     <div class="absolute bottom-4 left-4 pointer-events-auto">
-        <div id="builder-icon-container">
-            <div onclick="toggleBuilderMenu()" class="inventory-slot border-purple-500 bg-purple-900/40 hover:bg-purple-800/60" title="Habitat Builder">
-                <span style="color:#a0f; font-weight: bold;">HB</span>
-            </div>
+        <div onclick="toggleBuilderMenu()" class="inventory-slot border-purple-500 bg-purple-900/40 hover:bg-purple-800/60" title="Habitat Builder">
+            <span style="color:#a0f; font-weight: bold;">HB</span>
         </div>
     </div>
 
     <!-- Center Message -->
     <div id="msg" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-cyan-300 font-bold text-xl opacity-0 transition-opacity pointer-events-none text-center"></div>
 
-    <!-- Bottom: Inventory & Depth -->
+    <!-- Bottom: Inventory -->
     <div class="flex flex-col items-center gap-4">
         <div id="depth-indicator" class="text-2xl font-mono text-cyan-400">DEPTH: 0m</div>
-        <div class="text-[10px] text-cyan-500/50 uppercase tracking-widest">Resources</div>
+        <div class="text-[10px] text-cyan-500/50 uppercase tracking-widest">Inventory (Eat: ♨)</div>
         <div class="flex gap-2 pointer-events-auto" id="inventory"></div>
     </div>
 
@@ -79,7 +83,6 @@
     <div class="absolute right-4 top-4 w-56 pointer-events-auto bg-slate-900/90 p-4 rounded-lg border border-cyan-500/30 max-h-[70vh] overflow-y-auto">
         <h3 class="text-cyan-400 font-bold mb-3 border-b border-cyan-500/30 pb-1 flex justify-between items-center">
             FABRICATOR
-            <span class="text-[10px] opacity-50">v1.7</span>
         </h3>
         <div id="crafting-list" class="flex flex-col gap-2 text-sm"></div>
     </div>
@@ -87,7 +90,7 @@
 
 <script>
 /**
- * Subnautica 2D - Permanent Gear & Fixed Lighting
+ * Subnautica 2D - V2.0 (Survival Balance & Fix)
  */
 
 const canvas = document.getElementById('gameCanvas');
@@ -98,13 +101,14 @@ const builderMenu = document.getElementById('builder-menu');
 const state = {
     player: {
         x: 0, y: -100, vx: 0, vy: 0, width: 15, height: 35, rotation: 0,
-        baseSpeed: 0.15, speed: 0.15, friction: 0.94, health: 100,
+        baseSpeed: 0.15, speed: 0.15, friction: 0.94, 
+        health: 100, hunger: 100,
         o2: 45, maxO2: 45, depth: 0, legPhase: 0, equipped: null,
-        isInside: false
+        isInside: false, isInObservation: false
     },
     camera: { x: 0, y: 0 },
     mouse: { x: 0, y: 0, worldX: 0, worldY: 0 },
-    inventory: { 'Titanium': 100, 'Copper': 100, 'Quartz': 100 }, 
+    inventory: { 'Titanium': 1000, 'Copper': 5000, 'Quartz': 50000 }, 
     equipment: { tank: null, fins: null },
     resources: [],
     fish: [],
@@ -118,6 +122,8 @@ const state = {
         'Titanium': { color: '#889', symbol: 'Ti', type: 'resource' },
         'Copper': { color: '#b87333', symbol: 'Cu', type: 'resource' },
         'Quartz': { color: '#eef', symbol: 'Qz', type: 'resource' },
+        'Raw Fish': { color: '#4af', symbol: '><>', type: 'resource' },
+        'Cooked Fish': { color: '#fb0', symbol: '♨', type: 'food', nutrition: 35 },
         'Standard Tank': { color: '#fb0', symbol: 'O2', type: 'gear', slot: 'tank', o2: 90 },
         'High Capacity Tank': { color: '#f50', symbol: 'O2+', type: 'gear', slot: 'tank', o2: 180 },
         'Ultra High Capacity Tank': { color: '#f00', symbol: 'O2!', type: 'gear', slot: 'tank', o2: 360 },
@@ -127,6 +133,9 @@ const state = {
         'Habitat Builder': { color: '#a0f', symbol: 'HB', type: 'tool', slot: 'tool' }
     },
     blueprints: [
+        { id: 'cook', name: 'Cook Fish', cost: { 'Raw Fish': 1 }, crafted: false, repeat: true, effect: () => { 
+            state.inventory['Cooked Fish'] = (state.inventory['Cooked Fish'] || 0) + 1; 
+        } },
         { id: 'tank1', name: 'Standard Tank', cost: { 'Titanium': 2 }, crafted: false, effect: () => { state.equipment.tank = 'Standard Tank'; applyGearEffects(); } },
         { id: 'tank2', name: 'High Capacity Tank', cost: { 'Titanium': 4, 'Quartz': 2 }, crafted: false, unlock: 'tank1', effect: () => { state.equipment.tank = 'High Capacity Tank'; applyGearEffects(); } },
         { id: 'tank3', name: 'Ultra High Capacity Tank', cost: { 'Titanium': 10, 'Quartz': 5, 'Copper': 5 }, crafted: false, unlock: 'tank2', effect: () => { state.equipment.tank = 'Ultra High Capacity Tank'; applyGearEffects(); } },
@@ -138,14 +147,11 @@ const state = {
         { name: 'Compartment', cost: { 'Titanium': 2 }, width: 120, height: 60, type: 'room' },
         { name: 'L-Compartment', cost: { 'Titanium': 3 }, width: 90, height: 90, type: 'room' },
         { name: 'T-Compartment', cost: { 'Titanium': 4 }, width: 140, height: 90, type: 'room' },
-        { name: 'Scanner Room', cost: { 'Titanium': 5, 'Copper': 2 }, width: 160, height: 160, type: 'room' },
         { name: 'Moonpool', cost: { 'Titanium': 8, 'Copper': 4 }, width: 220, height: 100, type: 'room' },
         { name: 'Observation Bubble', cost: { 'Quartz': 4, 'Titanium': 1 }, width: 100, height: 100, type: 'bubble' },
         { name: 'Reinforced Window', cost: { 'Quartz': 2 }, width: 40, height: 30, type: 'window' },
-        { name: 'Foundation', cost: { 'Titanium': 4 }, width: 140, height: 20, type: 'structure' },
-        { name: 'Solar Panel', cost: { 'Quartz': 2, 'Copper': 1 }, width: 40, height: 15, type: 'solar' },
-        { name: 'Floodlight', cost: { 'Titanium': 1, 'Copper': 1 }, width: 12, height: 12, type: 'light' },
-        { name: 'Bio-Reactor', cost: { 'Titanium': 4, 'Copper': 2 }, width: 40, height: 60, type: 'internal' }
+        { name: 'Foundation', cost: { 'Titanium': 4 }, width: 280, height: 25, type: 'structure' },
+        { name: 'Solar Panel', cost: { 'Quartz': 2, 'Copper': 1 }, width: 40, height: 15, type: 'solar' }
     ]
 };
 
@@ -157,16 +163,8 @@ function showMsg(text) {
 
 function applyGearEffects() {
     const p = state.player;
-    if (state.equipment.tank) {
-        p.maxO2 = state.items[state.equipment.tank].o2;
-    } else {
-        p.maxO2 = 45;
-    }
-    if (state.equipment.fins) {
-        p.baseSpeed = state.items[state.equipment.fins].speed;
-    } else {
-        p.baseSpeed = 0.15;
-    }
+    p.maxO2 = state.equipment.tank ? state.items[state.equipment.tank].o2 : 45;
+    p.baseSpeed = state.equipment.fins ? state.items[state.equipment.fins].speed : 0.15;
     updateInventoryUI();
 }
 
@@ -183,14 +181,14 @@ function init() {
             type: ['Titanium', 'Copper', 'Quartz'][Math.floor(Math.random() * 3)],
         });
     }
-    for(let i=0; i<200; i++) {
+    for(let i=0; i<400; i++) {
         state.fish.push({
             x: (Math.random() - 0.5) * state.worldSize.width,
             y: Math.random() * state.worldSize.height,
-            vx: (Math.random() - 0.5) * 2,
-            vy: (Math.random() - 0.5) * 1,
-            size: 4 + Math.random() * 8,
-            color: `hsl(${Math.random()*360}, 60%, 50%)`
+            vx: (Math.random() - 0.5) * 2.5,
+            vy: (Math.random() - 0.5) * 1.5,
+            size: 5 + Math.random() * 8,
+            color: `hsl(${Math.random()*360}, 70%, 60%)`
         });
     }
     renderCrafting();
@@ -221,20 +219,15 @@ function toggleBuilderMenu() {
 function selectBuildPiece(piece) {
     state.activeBuilding = piece;
     builderMenu.style.display = 'none';
-    showMsg(`Placement Mode: ${piece.name}`);
 }
 
-function renderBuildMenu() {
-    const list = document.getElementById('build-options');
-    list.innerHTML = '';
-    state.habitatPieces.forEach(p => {
-        const btn = document.createElement('button');
-        btn.className = 'crafting-btn p-2 rounded text-[11px]';
-        let costStr = Object.entries(p.cost).map(([res, amt]) => `${amt}${state.items[res].symbol}`).join(' ');
-        btn.innerHTML = `<div class="font-bold">${p.name}</div><div class="opacity-70">${costStr}</div>`;
-        btn.onclick = () => selectBuildPiece(p);
-        list.appendChild(btn);
-    });
+function eatItem(itemName) {
+    if (state.inventory[itemName] > 0) {
+        state.inventory[itemName]--;
+        state.player.hunger = Math.min(100, state.player.hunger + state.items[itemName].nutrition);
+        showMsg("VITALS STABILIZED");
+        updateInventoryUI();
+    }
 }
 
 function toggleEquip(itemName) {
@@ -246,22 +239,17 @@ canvas.addEventListener('mousedown', (e) => {
     if (state.activeBuilding) {
         const piece = state.activeBuilding;
         const canAfford = Object.keys(piece.cost).every(res => (state.inventory[res] || 0) >= piece.cost[res]);
-        
         if (canAfford) {
             Object.entries(piece.cost).forEach(([res, amt]) => state.inventory[res] -= amt);
             state.baseParts.push({ 
-                x: state.mouse.worldX, 
-                y: state.mouse.worldY, 
-                name: piece.name,
-                width: piece.width,
-                height: piece.height,
-                type: piece.type
+                x: state.mouse.worldX, y: state.mouse.worldY, 
+                name: piece.name, width: piece.width, height: piece.height, type: piece.type
             });
-            showMsg(`${piece.name} Constructed`);
             state.activeBuilding = null;
             updateInventoryUI();
+            renderCrafting();
         } else {
-            showMsg("Insufficient Resources");
+            showMsg("RESOURCES REQUIRED");
         }
     }
 });
@@ -284,77 +272,78 @@ function update(dt) {
     const halfWidth = state.worldSize.width / 2;
     if (p.x < -halfWidth) { p.x = -halfWidth; p.vx = 0; }
     if (p.x > halfWidth) { p.x = halfWidth; p.vx = 0; }
+    if (p.y < -500) p.y = -500;
+    if (p.y > state.worldSize.height) p.y = state.worldSize.height;
 
     if (Math.abs(p.vx) > 0.1 || Math.abs(p.vy) > 0.1) {
         p.legPhase += dt * (p.equipped === 'Seaglide' ? 0.025 : 0.01);
         p.rotation = Math.atan2(p.vy, p.vx);
     }
 
-    if (p.y < -500) p.y = -500;
-    if (p.y > state.worldSize.height) p.y = state.worldSize.height;
-
-    // Interior Logic
+    // Inside Habitat Check
     let insideAny = false;
+    let insideObs = false;
     state.baseParts.forEach(bp => {
         if (bp.type === 'room' || bp.type === 'bubble') {
-            const dx = Math.abs(p.x - bp.x);
-            const dy = Math.abs(p.y - bp.y);
-            if (dx < bp.width/2 && dy < bp.height/2) insideAny = true;
+            if (Math.abs(p.x - bp.x) < bp.width/2 && Math.abs(p.y - bp.y) < bp.height/2) {
+                insideAny = true;
+                if (bp.type === 'bubble') insideObs = true;
+            }
         }
     });
-    
-    // Check tunnels for interior status
-    if (!insideAny) {
-        const rooms = state.baseParts.filter(p => p.type === 'room' || p.type === 'bubble');
-        for (let i = 0; i < rooms.length; i++) {
-            for (let j = i + 1; j < rooms.length; j++) {
-                const r1 = rooms[i];
-                const r2 = rooms[j];
-                const dist = Math.hypot(r1.x - r2.x, r1.y - r2.y);
-                if (dist < 280) {
-                    const d = distToSegment({x: p.x, y: p.y}, r1, r2);
-                    if (d < 40) {
-                        insideAny = true;
-                        break;
-                    }
-                }
-            }
-            if (insideAny) break;
-        }
-    }
-    
     p.isInside = insideAny;
+    p.isInObservation = insideObs;
     p.depth = Math.max(0, Math.floor(p.y / 10));
 
+    // Survival Logic
     if (p.y < 0 || p.isInside) {
         p.o2 = Math.min(p.maxO2, p.o2 + dt/10);
     } else {
         p.o2 -= dt/1000;
     }
 
+    // Hunger depletes slower (5000 instead of 2500)
+    p.hunger -= dt/5000; 
+    if (p.hunger < 0) {
+        p.hunger = 0;
+        p.health -= dt/200;
+    }
+
     if (p.o2 <= 0) {
         p.o2 = 0;
         p.health -= dt/100;
-        if(p.health <= 0) {
-            p.health = 100; p.o2 = p.maxO2; p.x = 0; p.y = -100;
-            showMsg("EMERGENCY RESUPPLY INITIATED");
-        }
     }
 
+    if(p.health <= 0) {
+        p.health = 100; p.o2 = p.maxO2; p.hunger = 100; p.x = 0; p.y = -100;
+        showMsg("RECONSTRUCTION COMPLETE");
+    }
+
+    // Interactions
     state.resources = state.resources.filter(r => {
         if(!p.isInside && Math.hypot(p.x - r.x, p.y - r.y) < 35) {
             state.inventory[r.type] = (state.inventory[r.type] || 0) + 1;
             updateInventoryUI();
+            renderCrafting();
             return false;
         }
         return true;
     });
 
-    state.fish.forEach(f => {
+    state.fish = state.fish.filter(f => {
         f.x += f.vx; f.y += f.vy;
         if(Math.random() < 0.01) { f.vx += (Math.random()-0.5); f.vy += (Math.random()-0.5); }
         if(f.x < -halfWidth || f.x > halfWidth) f.vx *= -1;
         if(f.y < 0 || f.y > state.worldSize.height) f.vy *= -1;
+
+        if (!p.isInside && Math.hypot(p.x - f.x, p.y - f.y) < 30) {
+            state.inventory['Raw Fish'] = (state.inventory['Raw Fish'] || 0) + 1;
+            updateInventoryUI();
+            renderCrafting();
+            showMsg("SPECIMEN ACQUIRED");
+            return false;
+        }
+        return true;
     });
 
     state.camera.x += (p.x - canvas.width/2 - state.camera.x) * 0.1;
@@ -362,17 +351,11 @@ function update(dt) {
     updateUI();
 }
 
-function distToSegment(p, v, w) {
-    const l2 = Math.pow(v.x - w.x, 2) + Math.pow(v.y - w.y, 2);
-    if (l2 == 0) return Math.hypot(p.x - v.x, p.y - v.y);
-    let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
-    t = Math.max(0, Math.min(1, t));
-    return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
-}
-
 function updateUI() {
     document.getElementById('health-bar').style.width = state.player.health + '%';
     document.getElementById('health-val').innerText = Math.ceil(state.player.health);
+    document.getElementById('hunger-bar').style.width = state.player.hunger + '%';
+    document.getElementById('hunger-val').innerText = Math.ceil(state.player.hunger);
     document.getElementById('o2-bar').style.width = (state.player.o2 / state.player.maxO2 * 100) + '%';
     document.getElementById('o2-val').innerText = Math.ceil(state.player.o2) + 's';
     document.getElementById('depth-indicator').innerText = state.player.isInside ? "HABITAT" : `DEPTH: ${state.player.depth}m`;
@@ -381,47 +364,41 @@ function updateUI() {
 function updateInventoryUI() {
     const invEl = document.getElementById('inventory');
     invEl.innerHTML = '';
-    Object.keys(state.inventory).forEach(key => {
-        if(state.items[key] && state.items[key].type === 'resource' && state.inventory[key] > 0) {
+    
+    const displayItems = ['Titanium', 'Copper', 'Quartz', 'Raw Fish', 'Cooked Fish'];
+    displayItems.forEach(key => {
+        const count = state.inventory[key] || 0;
+        if (count > 0) {
+            const item = state.items[key];
             const slot = document.createElement('div');
-            slot.className = 'inventory-slot';
-            slot.innerHTML = `<span style="color:${state.items[key].color}">${state.items[key].symbol}</span>
-                              <span class="absolute bottom-0 right-1 text-[10px] font-bold">${state.inventory[key]}</span>`;
+            slot.className = `inventory-slot ${item.type === 'food' ? 'edible' : ''}`;
+            slot.innerHTML = `<span style="color:${item.color}">${item.symbol}</span>
+                              <span class="absolute bottom-0 right-1 text-[10px] font-bold">${count}</span>`;
+            if (item.type === 'food') slot.onclick = () => eatItem(key);
             invEl.appendChild(slot);
         }
     });
 
     const equipEl = document.getElementById('equipment-panel');
     equipEl.innerHTML = '';
-    
-    // Tank Slot
-    if (state.equipment.tank) {
-        const tank = state.items[state.equipment.tank];
+    ['tank', 'fins'].forEach(st => {
+        const itemName = state.equipment[st];
         const slot = document.createElement('div');
-        slot.className = 'inventory-slot equipped';
-        slot.innerHTML = `<span style="color:${tank.color}">${tank.symbol}</span><div class="equip-label">${state.equipment.tank}</div>`;
+        if (itemName) {
+            const item = state.items[itemName];
+            slot.className = 'inventory-slot equipped';
+            slot.innerHTML = `<span style="color:${item.color}">${item.symbol}</span><div class="equip-label">${itemName}</div>`;
+        } else {
+            slot.className = 'inventory-slot opacity-20';
+            slot.innerHTML = `<span class="text-[10px]">NO ${st.toUpperCase()}</span>`;
+        }
         equipEl.appendChild(slot);
-    } else {
-        equipEl.innerHTML += '<div class="inventory-slot opacity-20"><span class="text-[10px]">NO TANK</span></div>';
-    }
+    });
 
-    // Fins Slot
-    if (state.equipment.fins) {
-        const fins = state.items[state.equipment.fins];
-        const slot = document.createElement('div');
-        slot.className = 'inventory-slot equipped';
-        slot.innerHTML = `<span style="color:${fins.color}">${fins.symbol}</span><div class="equip-label">${state.equipment.fins}</div>`;
-        equipEl.appendChild(slot);
-    } else {
-        equipEl.innerHTML += '<div class="inventory-slot opacity-20"><span class="text-[10px]">NO FINS</span></div>';
-    }
-
-    // Seaglide Tool Slot
     if (state.inventory['Seaglide']) {
-        const tool = state.items['Seaglide'];
         const slot = document.createElement('div');
         slot.className = `inventory-slot ${state.player.equipped === 'Seaglide' ? 'equipped' : ''}`;
-        slot.innerHTML = `<span style="color:${tool.color}">${tool.symbol}</span><div class="equip-label">SEAGLIDE</div>`;
+        slot.innerHTML = `<span style="color:${state.items['Seaglide'].color}">${state.items['Seaglide'].symbol}</span><div class="equip-label">SEAGLIDE</div>`;
         slot.onclick = () => toggleEquip('Seaglide');
         equipEl.appendChild(slot);
     }
@@ -431,23 +408,38 @@ function renderCrafting() {
     const list = document.getElementById('crafting-list');
     list.innerHTML = '';
     state.blueprints.forEach(bp => {
-        if (bp.crafted) return;
+        if (bp.crafted && !bp.repeat) return;
         if (bp.unlock) {
             const prev = state.blueprints.find(b => b.id === bp.unlock);
             if (!prev || !prev.crafted) return;
         }
 
-        const canCraft = Object.keys(bp.cost).every(res => (state.inventory[res] || 0) >= bp.cost[res]);
+        const canAfford = Object.keys(bp.cost).every(res => (state.inventory[res] || 0) >= bp.cost[res]);
         const btn = document.createElement('button');
         btn.className = `crafting-btn p-2 rounded flex flex-col`;
-        btn.disabled = !canCraft;
-        btn.innerHTML = `<div class="font-bold">${bp.name}</div><div class="text-[9px] opacity-70">${Object.entries(bp.cost).map(([r,a])=>a+r[0]).join(' ')}</div>`;
+        btn.disabled = !canAfford;
+        const costs = Object.entries(bp.cost).map(([r,a]) => `${a}${state.items[r].symbol}`).join(' ');
+        btn.innerHTML = `<div class="font-bold">${bp.name}</div><div class="text-[9px] opacity-70">Cost: ${costs}</div>`;
         btn.onclick = () => {
             Object.entries(bp.cost).forEach(([res, amt]) => state.inventory[res] -= amt);
             bp.crafted = true; bp.effect();
-            updateInventoryUI(); renderCrafting();
-            showMsg(`Crafted: ${bp.name}`);
+            updateInventoryUI(); 
+            renderCrafting();
+            showMsg(`FABRICATED: ${bp.name}`);
         };
+        list.appendChild(btn);
+    });
+}
+
+function renderBuildMenu() {
+    const list = document.getElementById('build-options');
+    list.innerHTML = '';
+    state.habitatPieces.forEach(p => {
+        const btn = document.createElement('button');
+        btn.className = 'crafting-btn p-2 rounded text-[11px]';
+        let costStr = Object.entries(p.cost).map(([res, amt]) => `${amt}${state.items[res].symbol}`).join(' ');
+        btn.innerHTML = `<div class="font-bold">${p.name}</div><div class="opacity-70">${costStr}</div>`;
+        btn.onclick = () => selectBuildPiece(p);
         list.appendChild(btn);
     });
 }
@@ -458,15 +450,18 @@ function draw() {
     ctx.translate(-state.camera.x, -state.camera.y);
 
     const isInside = state.player.isInside;
+    const isInsideObs = state.player.isInObservation;
 
-    // 1. Ocean / Terrain (Only if not inside)
-    if (!isInside) {
+    // Sky
+    const skyGrad = ctx.createLinearGradient(0, -1000, 0, 0);
+    skyGrad.addColorStop(0, '#008080'); skyGrad.addColorStop(1, '#20b2aa');
+    ctx.fillStyle = skyGrad; ctx.fillRect(-state.worldSize.width/2, -1000, state.worldSize.width, 1000);
+
+    // Ocean & Terrain
+    if (!isInside || isInsideObs) {
         const seaGrad = ctx.createLinearGradient(0, 0, 0, state.worldSize.height);
-        seaGrad.addColorStop(0, '#0055aa');
-        seaGrad.addColorStop(0.5, '#001133');
-        seaGrad.addColorStop(1, '#000408');
-        ctx.fillStyle = seaGrad;
-        ctx.fillRect(-state.worldSize.width/2, 0, state.worldSize.width, state.worldSize.height);
+        seaGrad.addColorStop(0, '#0055aa'); seaGrad.addColorStop(1, '#000408');
+        ctx.fillStyle = seaGrad; ctx.fillRect(-state.worldSize.width/2, 0, state.worldSize.width, state.worldSize.height);
 
         ctx.fillStyle = '#1a1a1a';
         ctx.beginPath();
@@ -486,18 +481,16 @@ function draw() {
             ctx.beginPath(); ctx.arc(r.x, r.y, 6, 0, Math.PI*2); ctx.fill();
         });
     } else {
-        ctx.fillStyle = '#050a10';
-        ctx.fillRect(state.camera.x, state.camera.y, canvas.width, canvas.height);
+        ctx.fillStyle = '#050a10'; ctx.fillRect(state.camera.x, state.camera.y, canvas.width, canvas.height);
     }
 
-    // 2. Base Components
+    // Base Rendering
     ctx.lineWidth = 55; ctx.strokeStyle = '#2d333d'; ctx.lineCap = 'round';
     const rooms = state.baseParts.filter(p => p.type === 'room' || p.type === 'bubble');
     rooms.forEach((p1, i) => {
         rooms.forEach((p2, j) => {
             if (i >= j) return;
-            const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-            if (dist < 280) {
+            if (Math.hypot(p1.x - p2.x, p1.y - p2.y) < 280) {
                 ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
                 ctx.lineWidth = 42; ctx.strokeStyle = '#1e242e'; ctx.stroke();
                 ctx.lineWidth = 55; ctx.strokeStyle = '#2d333d';
@@ -510,11 +503,8 @@ function draw() {
         if (bp.type === 'room') {
             ctx.fillStyle = '#1e242e';
             ctx.beginPath(); ctx.roundRect(bp.x - bp.width/2, bp.y - bp.height/2, bp.width, bp.height, 8); ctx.fill(); ctx.stroke();
-            if (bp.name === 'Scanner Room') {
-                ctx.fillStyle = '#0ff2'; ctx.beginPath(); ctx.arc(bp.x, bp.y, 40, 0, Math.PI*2); ctx.fill();
-            }
         } else if (bp.type === 'bubble') {
-            ctx.fillStyle = 'rgba(20, 60, 100, 0.6)';
+            ctx.fillStyle = 'rgba(20, 60, 100, 0.4)';
             ctx.beginPath(); ctx.arc(bp.x, bp.y, bp.width/2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
         } else if (bp.type === 'structure') {
             ctx.fillStyle = '#333'; ctx.strokeStyle = '#555';
@@ -522,29 +512,10 @@ function draw() {
         } else if (bp.type === 'solar') {
             ctx.fillStyle = '#111'; ctx.strokeStyle = '#444';
             ctx.beginPath(); ctx.roundRect(bp.x - bp.width/2, bp.y - bp.height/2, bp.width, bp.height, 2); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = 'rgba(0, 200, 255, 0.4)';
-            ctx.fillRect(bp.x - bp.width/2 + 2, bp.y - bp.height/2 + 2, bp.width - 4, bp.height - 4);
-        } else if (bp.type === 'light') {
-            ctx.fillStyle = '#666'; ctx.beginPath(); ctx.arc(bp.x, bp.y, 6, 0, Math.PI*2); ctx.fill();
-        } else if (bp.type === 'internal') {
-            ctx.fillStyle = '#0f5'; ctx.strokeStyle = '#0a3';
-            ctx.beginPath(); ctx.roundRect(bp.x - bp.width/2, bp.y - bp.height/2, bp.width, bp.height, 10); ctx.fill(); ctx.stroke();
         }
     });
 
-    // 3. Windows
-    state.baseParts.forEach(bp => {
-        if (bp.type === 'window') {
-            ctx.save(); ctx.beginPath(); ctx.roundRect(bp.x - bp.width/2, bp.y - bp.height/2, bp.width, bp.height, 4); ctx.clip();
-            const seaGrad = ctx.createLinearGradient(0, 0, 0, state.worldSize.height);
-            seaGrad.addColorStop(0, '#0055aa'); seaGrad.addColorStop(1, '#000408');
-            ctx.fillStyle = seaGrad; ctx.fillRect(bp.x - bp.width/2, bp.y - bp.height/2, bp.width, bp.height);
-            ctx.restore();
-            ctx.strokeStyle = '#0ff'; ctx.lineWidth = 2; ctx.stroke();
-        }
-    });
-
-    // 4. Ghost Building
+    // Ghost
     if (state.activeBuilding) {
         ctx.save(); ctx.globalAlpha = 0.4; ctx.fillStyle = '#0f0';
         if (state.activeBuilding.type === 'bubble') {
@@ -555,106 +526,45 @@ function draw() {
         ctx.restore();
     }
 
-    // 5. Diver
+    // Diver
     ctx.save();
     ctx.translate(state.player.x, state.player.y);
     ctx.rotate(state.player.rotation);
     const legWave = Math.sin(state.player.legPhase) * 12;
     ctx.fillStyle = '#111';
-    ctx.fillRect(-15, -6 + legWave/2, 10, 4);
-    ctx.fillRect(-15, 2 - legWave/2, 10, 4);
+    ctx.fillRect(-15, -6 + legWave/2, 10, 4); ctx.fillRect(-15, 2 - legWave/2, 10, 4);
     ctx.fillStyle = '#222';
     ctx.beginPath(); ctx.roundRect(-8, -8, 20, 16, 4); ctx.fill();
-    
-    // Tank logic
-    const tankName = state.equipment.tank;
-    ctx.fillStyle = tankName === 'Ultra High Capacity Tank' ? '#f00' : (tankName === 'High Capacity Tank' ? '#f50' : (tankName ? '#fb0' : '#444'));
+    const tN = state.equipment.tank;
+    ctx.fillStyle = tN === 'Ultra High Capacity Tank' ? '#f00' : (tN === 'High Capacity Tank' ? '#f50' : (tN ? '#fb0' : '#444'));
     ctx.beginPath(); ctx.roundRect(-10, -6, 12, 12, 2); ctx.fill();
-    
     ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(14, 0, 7, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = '#0ff'; ctx.beginPath(); ctx.arc(16, 0, 4, -Math.PI/2, Math.PI/2); ctx.fill();
-    
     if (state.player.equipped === 'Seaglide') {
         ctx.fillStyle = '#0f8'; ctx.fillRect(16, -6, 15, 12);
-        ctx.fillStyle = '#4fa'; ctx.fillRect(28, -2, 5, 4);
     }
     ctx.restore();
 
-    // 6. Darkness Filter
     ctx.restore(); 
-    if (!isInside) {
-        const depthAlpha = Math.min(0.9, state.player.depth / 550);
-        
-        // Draw darkness overlay
+    if (!isInside || isInsideObs) {
+        const depthAlpha = Math.min(0.9, state.player.depth / 600);
         ctx.save();
         ctx.fillStyle = `rgba(0,0,0,${depthAlpha})`;
         ctx.fillRect(0,0, canvas.width, canvas.height);
         
-        // Cutout lights
         ctx.globalCompositeOperation = 'destination-out';
         ctx.translate(-state.camera.x, -state.camera.y);
-        
-        // Seaglide Light Cutout
         if (state.player.equipped === 'Seaglide') {
-            const sx = state.player.x;
-            const sy = state.player.y;
-            const grad = ctx.createRadialGradient(sx, sy, 20, sx, sy, 400);
+            const grad = ctx.createRadialGradient(state.player.x, state.player.y, 20, state.player.x, state.player.y, 400);
             grad.addColorStop(0, 'rgba(255,255,255,1)');
             grad.addColorStop(1, 'rgba(255,255,255,0)');
             ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.moveTo(sx, sy);
-            ctx.arc(sx, sy, 500, state.player.rotation - 0.45, state.player.rotation + 0.45);
-            ctx.fill();
-        }
-
-        // Base Floodlight Cutout
-        state.baseParts.forEach(bp => {
-            if (bp.type === 'light') {
-                const grad = ctx.createRadialGradient(bp.x, bp.y, 10, bp.x, bp.y, 250);
-                grad.addColorStop(0, 'rgba(255,255,255,1)');
-                grad.addColorStop(1, 'rgba(255,255,255,0)');
-                ctx.fillStyle = grad;
-                ctx.beginPath(); ctx.arc(bp.x, bp.y, 250, 0, Math.PI*2); ctx.fill();
-            }
-        });
-        ctx.restore();
-
-        // Screen-mode Highlights (The "Color" of the light)
-        ctx.save();
-        ctx.globalCompositeOperation = 'screen';
-        ctx.translate(-state.camera.x, -state.camera.y);
-        
-        if (state.player.equipped === 'Seaglide') {
-            const sx = state.player.x;
-            const sy = state.player.y;
-            const gradHighlight = ctx.createRadialGradient(sx, sy, 50, sx, sy, 450);
-            gradHighlight.addColorStop(0, 'rgba(200, 255, 255, 0.3)');
-            gradHighlight.addColorStop(1, 'rgba(200, 255, 255, 0)');
-            ctx.fillStyle = gradHighlight;
-            ctx.beginPath();
-            ctx.moveTo(sx, sy);
-            ctx.arc(sx, sy, 500, state.player.rotation - 0.5, state.player.rotation + 0.5);
+            ctx.beginPath(); ctx.moveTo(state.player.x, state.player.y);
+            ctx.arc(state.player.x, state.player.y, 500, state.player.rotation - 0.45, state.player.rotation + 0.45);
             ctx.fill();
         }
         ctx.restore();
     }
-    
-    // 7. Small Visual Glows (Bulbs)
-    ctx.save();
-    ctx.translate(-state.camera.x, -state.camera.y);
-    state.baseParts.forEach(bp => {
-        if (bp.type === 'light') {
-            ctx.fillStyle = '#fff';
-            ctx.beginPath(); ctx.arc(bp.x, bp.y, 5, 0, Math.PI*2); ctx.fill();
-            const glow = ctx.createRadialGradient(bp.x, bp.y, 5, bp.x, bp.y, 40);
-            glow.addColorStop(0, 'rgba(255,255,200,0.5)');
-            glow.addColorStop(1, 'transparent');
-            ctx.fillStyle = glow;
-            ctx.beginPath(); ctx.arc(bp.x, bp.y, 40, 0, Math.PI*2); ctx.fill();
-        }
-    });
-    ctx.restore();
 }
 
 function gameLoop(timestamp) {
