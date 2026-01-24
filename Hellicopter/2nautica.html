@@ -23,7 +23,7 @@
         #builder-menu { position: absolute; bottom: 80px; left: 1rem; background: rgba(10, 20, 30, 0.95); border: 1px solid #0ff; padding: 10px; border-radius: 8px; display: none; max-height: 60vh; width: 220px; overflow-y: auto; }
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-thumb { background: #0ff; border-radius: 10px; }
-        #drone-hud { position: absolute; top: 20px; right: 20px; background: rgba(0, 50, 50, 0.8); border: 1px solid #0ff; padding: 10px; border-radius: 4px; display: none; font-family: monospace; font-size: 12px; color: #0ff; }
+        #drone-hud, #moth-hud { position: absolute; top: 20px; right: 250px; background: rgba(0, 50, 50, 0.8); border: 1px solid #0ff; padding: 10px; border-radius: 4px; display: none; font-family: monospace; font-size: 12px; color: #0ff; }
     </style>
 </head>
 <body>
@@ -48,6 +48,12 @@
         <div id="drone-status">LINK STABLE</div>
         <div id="drone-cargo">CARGO: EMPTY</div>
         <button onclick="exitDroneControl()" class="mt-2 bg-red-900/60 border border-red-500 text-[10px] px-2 py-1 hover:bg-red-700">DISCONNECT (X)</button>
+    </div>
+    <div id="moth-hud" class="pointer-events-auto">
+        <div class="mb-1 text-white font-bold underline italic">SEAMOTH OS v2.0</div>
+        <div id="moth-energy">ENERGY: 100%</div>
+        <div id="moth-status">SYSTEMS NOMINAL</div>
+        <button onclick="exitSeamoth()" class="mt-2 bg-red-900/60 border border-red-500 text-[10px] px-2 py-1 hover:bg-red-700">EXIT VEHICLE (E)</button>
     </div>
     <div id="side-gear" class="absolute left-4 top-40 flex flex-col gap-4">
         <div class="text-[10px] text-cyan-500/50 uppercase tracking-widest font-bold mb-1">Equipment</div>
@@ -90,7 +96,7 @@ const state = {
         health: 100, hunger: 100,
         o2: 45, maxO2: 45, depth: 0, legPhase: 0, equipped: null,
         isInside: false, isInObservation: false,
-        activeDrone: null
+        activeDrone: null, activeSeamoth: null
     },
     camera: { x: 0, y: 0 },
     mouse: { x: 0, y: 0, worldX: 0, worldY: 0 },
@@ -100,6 +106,7 @@ const state = {
     fish: [],
     baseParts: [],
     drones: [],
+    seamoths: [],
     terrainPoints: [],
     lastTime: 0,
     keys: {},
@@ -123,7 +130,8 @@ const state = {
         'Ultra Glide Fins': { color: '#0ff', symbol: 'F+', type: 'gear', slot: 'fins', speed: 0.32 },
         'Seaglide': { color: '#0f8', symbol: 'SG', type: 'tool' },
         'Flashlight': { color: '#ff0', symbol: 'FL', type: 'tool' },
-        'Habitat Builder': { color: '#a0f', symbol: 'HB', type: 'tool' }
+        'Habitat Builder': { color: '#a0f', symbol: 'HB', type: 'tool' },
+        'Seamoth': { color: '#fff', symbol: 'SM', type: 'vehicle' }
     },
     blueprints: [
         { id: 'cook', name: 'Cook Fish', cost: { 'Raw Fish': 1 }, crafted: false, repeat: true, effect: () => { state.inventory['Cooked Fish'] = (state.inventory['Cooked Fish'] || 0) + 1; } },
@@ -135,23 +143,25 @@ const state = {
         { id: 'fins2', name: 'Ultra Glide Fins', cost: { 'Titanium': 2, 'Copper': 2, 'Silver': 1 }, crafted: false, unlock: 'fins1', effect: () => { state.equipment.fins = 'Ultra Glide Fins'; applyGearEffects(); } },
         { id: 'flashlight', name: 'Flashlight', cost: { 'Titanium': 1, 'Quartz': 1 }, crafted: false, effect: () => { state.inventory['Flashlight'] = 1; updateInventoryUI(); } },
         { id: 'seaglide', name: 'Seaglide', cost: { 'Copper': 2, 'Titanium': 1, 'Quartz': 1 }, crafted: false, effect: () => { state.inventory['Seaglide'] = 1; updateInventoryUI(); } },
-        { id: 'builder', name: 'Habitat Builder', cost: { 'Titanium': 3, 'Copper': 1, 'Silver': 1 }, crafted: false, effect: () => { state.inventory['Habitat Builder'] = 1; updateInventoryUI(); } }
+        { id: 'builder', name: 'Habitat Builder', cost: { 'Titanium': 3, 'Copper': 1, 'Silver': 1 }, crafted: false, effect: () => { state.inventory['Habitat Builder'] = 1; updateInventoryUI(); } },
+        { id: 'seamoth', name: 'Seamoth', cost: { 'Titanium': 10, 'Copper': 4, 'Lead': 2, 'Gold': 1 }, crafted: false, repeat: true, effect: () => { 
+            state.seamoths.push({ x: state.player.x + 50, y: state.player.y, vx: 0, vy: 0, rotation: 0, energy: 100, maxEnergy: 100, dockedId: null });
+            showMsg("SEAMOTH CONSTRUCTED");
+        } }
     ],
     habitatPieces: [
         { name: 'Compartment', cost: { 'Titanium': 2 }, width: 120, height: 60, type: 'room' },
         { name: 'Multi-Purpose Room', cost: { 'Titanium': 6 }, width: 160, height: 140, type: 'room' },
         { name: 'Scanner Room', cost: { 'Titanium': 3, 'Copper': 2, 'Gold': 1 }, width: 130, height: 90, type: 'room_special' },
         { name: 'Bio-Reactor Module', cost: { 'Titanium': 4, 'Quartz': 2, 'Silver': 1 }, width: 100, height: 120, type: 'room_lab' },
-        { name: 'Moonpool', cost: { 'Titanium': 8, 'Copper': 4, 'Lead': 2 }, width: 220, height: 100, type: 'room' },
+        { name: 'Moonpool', cost: { 'Titanium': 8, 'Copper': 4, 'Lead': 2 }, width: 220, height: 160, type: 'moonpool' },
         { name: 'Observation Bubble', cost: { 'Quartz': 4, 'Titanium': 1 }, width: 100, height: 100, type: 'bubble' },
         { name: 'Vertical Connector', cost: { 'Titanium': 2 }, width: 50, height: 140, type: 'room' },
         { name: 'Reinforced Window', cost: { 'Quartz': 2, 'Lead': 1 }, width: 45, height: 35, type: 'window' },
         { name: 'Reinforcement Plate', cost: { 'Titanium': 2, 'Lead': 2 }, width: 60, height: 60, type: 'plate' },
         { name: 'Floodlight', cost: { 'Titanium': 1, 'Quartz': 1 }, width: 20, height: 20, type: 'light' },
         { name: 'Solar Panel', cost: { 'Quartz': 2, 'Copper': 1 }, width: 40, height: 15, type: 'solar' },
-        { name: 'Wall Planter', cost: { 'Titanium': 1 }, width: 30, height: 20, type: 'decoration' },
         { name: 'Storage Locker', cost: { 'Titanium': 2, 'Quartz': 1 }, width: 40, height: 60, type: 'locker' },
-        { name: 'Internal Growbed', cost: { 'Titanium': 4 }, width: 100, height: 30, type: 'decoration' },
         { name: 'Foundation', cost: { 'Titanium': 4, 'Lead': 2 }, width: 280, height: 25, type: 'structure' }
     ]
 };
@@ -221,9 +231,8 @@ window.addEventListener('keydown', e => {
         renderCrafting();
         showMsg("CREATIVE MODE ACTIVE");
     }
-    if (e.key.toLowerCase() === 'x' && state.player.activeDrone) {
-        exitDroneControl();
-    }
+    if (e.key.toLowerCase() === 'x' && state.player.activeDrone) exitDroneControl();
+    if (e.key.toLowerCase() === 'e' && state.player.activeSeamoth) exitSeamoth();
 });
 window.addEventListener('keyup', e => state.keys[e.key.toLowerCase()] = false);
 window.addEventListener('mousemove', e => {
@@ -252,19 +261,49 @@ function exitDroneControl() {
     document.getElementById('fab-panel').style.opacity = '1';
     document.getElementById('side-gear').style.opacity = '1';
 }
+function exitSeamoth() {
+    const m = state.player.activeSeamoth;
+    if (m.dockedId) {
+        const moonpool = state.baseParts.find(bp => bp.id === m.dockedId);
+        state.player.x = moonpool.x;
+        state.player.y = moonpool.y;
+    } else {
+        state.player.x = m.x + Math.cos(m.rotation + Math.PI/2) * 40;
+        state.player.y = m.y + Math.sin(m.rotation + Math.PI/2) * 40;
+    }
+    state.player.vx = 0; state.player.vy = 0;
+    state.player.activeSeamoth = null;
+    document.getElementById('moth-hud').style.display = 'none';
+    document.getElementById('stats-panel').style.opacity = '1';
+    document.getElementById('side-gear').style.opacity = '1';
+    showMsg("EXITED SEAMOTH");
+}
 canvas.addEventListener('mousedown', (e) => {
     const isRightClick = e.button === 2;
-    if (!state.player.activeDrone && state.player.isInside) {
-        for (let drone of state.drones) {
-            const dDist = Math.hypot(state.mouse.worldX - drone.x, state.mouse.worldY - drone.y);
-            if (dDist < 30) {
-                state.player.activeDrone = drone;
-                document.getElementById('drone-hud').style.display = 'block';
+    if (!state.player.activeDrone && !state.player.activeSeamoth) {
+        for (let moth of state.seamoths) {
+            const mDist = Math.hypot(state.mouse.worldX - moth.x, state.mouse.worldY - moth.y);
+            if (mDist < 50) {
+                state.player.activeSeamoth = moth;
+                document.getElementById('moth-hud').style.display = 'block';
                 document.getElementById('stats-panel').style.opacity = '0.3';
-                document.getElementById('fab-panel').style.opacity = '0.3';
                 document.getElementById('side-gear').style.opacity = '0.3';
-                showMsg("CONTROLLING CAMERA DRONE");
+                showMsg("SEAMOTH SYSTEMS ONLINE");
                 return;
+            }
+        }
+        if (state.player.isInside) {
+            for (let drone of state.drones) {
+                const dDist = Math.hypot(state.mouse.worldX - drone.x, state.mouse.worldY - drone.y);
+                if (dDist < 30) {
+                    state.player.activeDrone = drone;
+                    document.getElementById('drone-hud').style.display = 'block';
+                    document.getElementById('stats-panel').style.opacity = '0.3';
+                    document.getElementById('fab-panel').style.opacity = '0.3';
+                    document.getElementById('side-gear').style.opacity = '0.3';
+                    showMsg("CONTROLLING CAMERA DRONE");
+                    return;
+                }
             }
         }
     }
@@ -357,10 +396,11 @@ function isPointOnLine(px, py, x1, y1, x2, y2, thickness) {
 function update(dt) {
     const p = state.player;
     state.dayTime = (state.dayTime + dt/240000) % 1;
-    const target = p.activeDrone || p;
+    const target = p.activeDrone || p.activeSeamoth || p;
     const isDrone = !!p.activeDrone;
-    target.speed = isDrone ? 0.35 : p.baseSpeed;
-    if (!isDrone) {
+    const isMoth = !!p.activeSeamoth;
+    target.speed = isDrone ? 0.35 : (isMoth ? 0.6 : p.baseSpeed);
+    if (!isDrone && !isMoth) {
         if (p.equipped === 'Seaglide') p.speed *= 2.5;
         else if (p.isInside) p.speed *= 0.75; 
     }
@@ -369,9 +409,24 @@ function update(dt) {
     if(state.keys['arrowdown'] || state.keys['s']) ay += target.speed;
     if(state.keys['arrowleft'] || state.keys['a']) ax -= target.speed;
     if(state.keys['arrowright'] || state.keys['d']) ax += target.speed;
+    if (isMoth && target.energy <= 0) { ax = 0; ay = 0; }
     target.vx += ax; target.vy += ay;
-    target.vx *= isDrone ? 0.96 : p.friction; 
-    target.vy *= isDrone ? 0.96 : p.friction;
+    target.vx *= (isDrone || isMoth) ? 0.96 : p.friction; 
+    target.vy *= (isDrone || isMoth) ? 0.96 : p.friction;
+    if (isMoth && target.dockedId) {
+        if (Math.abs(ax) > 0.1 || Math.abs(ay) > 0.1) {
+            target.dockedId = null;
+            showMsg("SEAMOTH UNDOCKED");
+        } else {
+            const moonpool = state.baseParts.find(bp => bp.id === target.dockedId);
+            if (moonpool) {
+                target.x += (moonpool.x - target.x) * 0.1;
+                target.y += (moonpool.y - target.y) * 0.1;
+                target.vx = 0; target.vy = 0;
+                target.rotation += (Math.PI/2 - target.rotation) * 0.1;
+            } else target.dockedId = null;
+        }
+    }
     target.x += target.vx; target.y += target.vy;
     const halfWidth = state.worldSize.width / 2;
     if (target.x < -halfWidth) { target.x = -halfWidth; target.vx = 0; }
@@ -379,7 +434,7 @@ function update(dt) {
     if (target.y < -500) target.y = -500;
     if (target.y > state.worldSize.height) target.y = state.worldSize.height;
     if (Math.abs(target.vx) > 0.1 || Math.abs(target.vy) > 0.1) {
-        if (!isDrone) {
+        if (!isDrone && !isMoth) {
             const speedScale = (p.equipped === 'Seaglide' ? 0.025 : (p.isInside ? 0.01 : 0.015));
             p.legPhase += dt * speedScale;
         }
@@ -389,6 +444,26 @@ function update(dt) {
         while (diff > Math.PI) diff -= Math.PI * 2;
         target.rotation += diff * 0.15;
     }
+    if (isMoth && !target.dockedId) {
+        if (Math.abs(ax) > 0.1 || Math.abs(ay) > 0.1) target.energy = Math.max(0, target.energy - dt/1000);
+        state.baseParts.forEach(bp => {
+            if (bp.type === 'moonpool' && Math.hypot(target.x - bp.x, target.y - bp.y) < 60) {
+                target.dockedId = bp.id;
+                showMsg("SEAMOTH DOCKED");
+            }
+        });
+    }
+    let basePower = 0;
+    state.baseParts.forEach(bp => {
+        if (bp.type === 'solar') {
+            const isDay = state.dayTime > 0.2 && state.dayTime < 0.8;
+            if (isDay) basePower += 0.5 * Math.max(0, 1 - (bp.y / 1500));
+        }
+        if (bp.type === 'room_lab') basePower += 0.8;
+    });
+    state.seamoths.forEach(m => {
+        if (m.dockedId && basePower > 0.1) m.energy = Math.min(m.maxEnergy, m.energy + dt/500);
+    });
     state.drones.forEach(d => {
         if (d !== p.activeDrone) {
             d.vx *= 0.95; d.vy *= 0.95;
@@ -404,23 +479,15 @@ function update(dt) {
     });
     let insideAny = false;
     let insideObs = false;
-    let basePowerO2 = 0;
-    state.baseParts.forEach(bp => {
-        if (bp.type === 'solar') {
-            const isDay = state.dayTime > 0.2 && state.dayTime < 0.8;
-            if (isDay) basePowerO2 += 0.5 * Math.max(0, 1 - (bp.y / 1500));
-        }
-        if (bp.type === 'room_lab') basePowerO2 += 0.8;
-    });
     state.baseParts.forEach((bp, i) => {
-        if (bp.type.startsWith('room') || bp.type === 'bubble') {
+        if (bp.type.startsWith('room') || bp.type === 'bubble' || bp.type === 'moonpool') {
             if (Math.abs(p.x - bp.x) < bp.width/2 && Math.abs(p.y - bp.y) < bp.height/2) {
                 insideAny = true;
                 if (bp.type === 'bubble') insideObs = true;
             }
-            if (!insideAny && bp.type.startsWith('room')) {
+            if (!insideAny && (bp.type.startsWith('room') || bp.type === 'moonpool')) {
                 state.baseParts.forEach((bp2, j) => {
-                    if (i < j && bp2.type.startsWith('room')) {
+                    if (i < j && (bp2.type.startsWith('room') || bp2.type === 'moonpool')) {
                         const dist = Math.hypot(bp.x - bp2.x, bp.y - bp2.y);
                         if (dist < 300) {
                             if (isPointOnLine(p.x, p.y, bp.x, bp.y, bp2.x, bp2.y, 20)) insideAny = true;
@@ -434,19 +501,19 @@ function update(dt) {
     p.isInObservation = insideObs;
     p.depth = Math.max(0, Math.floor(target.y / 10));
     if (p.y < 0) p.o2 = Math.min(p.maxO2, p.o2 + dt/10);
-    else if (p.isInside) p.o2 = Math.min(p.maxO2, p.o2 + (basePowerO2 > 0.1 ? dt/8 : -dt/2000));
+    else if (p.isInside || p.activeSeamoth) p.o2 = Math.min(p.maxO2, p.o2 + (p.activeSeamoth || basePower > 0.1 ? dt/8 : -dt/2000));
     else p.o2 -= dt/1000;
     p.hunger -= dt/12000; 
     if (p.hunger < 0) { p.hunger = 0; p.health -= dt/200; }
     if (p.o2 <= 0) { p.o2 = 0; p.health -= dt/100; }
     if(p.health <= 0) {
         p.health = 100; p.o2 = p.maxO2; p.hunger = 100; p.x = 0; p.y = -100;
-        exitDroneControl();
+        exitDroneControl(); if(p.activeSeamoth) exitSeamoth();
         showMsg("RECONSTRUCTION COMPLETE");
     }
     state.resources = state.resources.filter(r => {
         const dist = Math.hypot(target.x - r.x, target.y - r.y);
-        if(!p.isInside && dist < 35 && !isDrone) {
+        if(!p.isInside && dist < 35 && !isDrone && !isMoth) {
             state.inventory[r.type] = (state.inventory[r.type] || 0) + 1;
             updateInventoryUI(); renderCrafting(); return false;
         }
@@ -457,7 +524,7 @@ function update(dt) {
         }
         return true;
     });
-    if (!isDrone) {
+    if (!isDrone && !isMoth) {
         state.fish = state.fish.filter(f => {
             f.x += f.vx; f.y += f.vy;
             if(f.x < -halfWidth || f.x > halfWidth) f.vx *= -1;
@@ -488,6 +555,11 @@ function updateUI() {
             const dist = Math.floor(Math.hypot(state.player.activeDrone.x - parent.x, state.player.activeDrone.y - parent.y) / 10);
             document.getElementById('drone-status').innerText = `DIST: ${dist}m / LINK STABLE`;
         }
+    }
+    if (state.player.activeSeamoth) {
+        const m = state.player.activeSeamoth;
+        document.getElementById('moth-energy').innerText = `ENERGY: ${Math.ceil(m.energy)}%`;
+        document.getElementById('moth-status').innerText = m.dockedId ? "DOCKED & CHARGING" : (m.energy < 20 ? "LOW POWER WARNING" : "SYSTEMS NOMINAL");
     }
 }
 function updateInventoryUI() {
@@ -563,6 +635,7 @@ function renderBuildMenu() {
 }
 function drawPlayer() {
     const p = state.player;
+    if (p.activeSeamoth) return;
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(p.rotation);
@@ -595,6 +668,24 @@ function drawPlayer() {
     }
     ctx.restore();
 }
+function drawSeamoth(m) {
+    ctx.save();
+    ctx.translate(m.x, m.y);
+    ctx.rotate(m.rotation);
+    ctx.fillStyle = '#eee';
+    ctx.beginPath(); ctx.ellipse(0, 0, 40, 30, 0, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#888'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = 'rgba(0, 200, 255, 0.4)';
+    ctx.beginPath(); ctx.arc(15, 0, 22, -Math.PI/2, Math.PI/2); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.stroke();
+    ctx.fillStyle = '#ccc';
+    ctx.beginPath(); ctx.roundRect(-35, -20, 20, 40, 5); ctx.fill();
+    ctx.fillStyle = '#f90'; ctx.beginPath(); ctx.roundRect(-32, -15, 5, 30, 2); ctx.fill();
+    if (m.energy > 0) {
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(38, -12, 4, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(38, 12, 4, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+}
 function drawDrone(d) {
     ctx.save();
     ctx.translate(d.x, d.y);
@@ -614,26 +705,13 @@ function drawDrone(d) {
         ctx.fillStyle = state.items[d.cargo].color;
         ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI*2); ctx.fill();
     }
-    if (state.player.activeDrone === d) {
-        const parent = state.baseParts.find(bp => bp.id === d.parentId);
-        if (parent) {
-            const angle = Math.atan2(parent.y - d.y, parent.x - d.x);
-            ctx.restore(); ctx.save();
-            ctx.translate(d.x, d.y);
-            ctx.rotate(angle);
-            ctx.fillStyle = '#0ff'; ctx.beginPath();
-            ctx.moveTo(40, -5); ctx.lineTo(50, 0); ctx.lineTo(40, 5); ctx.fill();
-            ctx.font = '8px monospace';
-            ctx.fillText("SCANNER ROOM", 55, 3);
-        }
-    }
     ctx.restore();
 }
 function draw() {
     ctx.clearRect(0,0, canvas.width, canvas.height);
     ctx.save();
     ctx.translate(-state.camera.x, -state.camera.y);
-    const isInside = state.player.isInside && !state.player.activeDrone;
+    const isInside = state.player.isInside && !state.player.activeDrone && !state.player.activeSeamoth;
     const isInsideObs = state.player.isInObservation;
     if (!isInside || isInsideObs) {
         const skyGrad = ctx.createLinearGradient(0, -600, 0, 0);
@@ -662,9 +740,9 @@ function draw() {
     }
     ctx.lineWidth = 40; ctx.strokeStyle = '#2c3e50';
     state.baseParts.forEach((bp, i) => {
-        if (bp.type.startsWith('room')) {
+        if (bp.type.startsWith('room') || bp.type === 'moonpool') {
             state.baseParts.forEach((bp2, j) => {
-                if (i < j && bp2.type.startsWith('room')) {
+                if (i < j && (bp2.type.startsWith('room') || bp2.type === 'moonpool')) {
                     const dist = Math.hypot(bp.x - bp2.x, bp.y - bp2.y);
                     if (dist < 300) {
                         ctx.beginPath(); ctx.moveTo(bp.x, bp.y); ctx.lineTo(bp2.x, bp2.y); ctx.stroke();
@@ -683,31 +761,27 @@ function draw() {
         if (bp.type === 'room_lab') {
             ctx.fillStyle = '#1a1a1a';
             ctx.beginPath(); ctx.roundRect(bp.x - bp.width/2, bp.y - bp.height/2, bp.width, bp.height, 12); ctx.fill();
-            ctx.fillStyle = 'rgba(0, 255, 100, 0.2)';
-            ctx.beginPath(); ctx.arc(bp.x, bp.y, 35, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = 'rgba(0, 255, 100, 0.2)'; ctx.beginPath(); ctx.arc(bp.x, bp.y, 35, 0, Math.PI*2); ctx.fill();
             ctx.fillStyle = '#0f5';
             const pulse = Math.sin(Date.now() * 0.005) * 5;
-            ctx.shadowBlur = 15 + pulse; ctx.shadowColor = '#0f5';
-            ctx.beginPath(); ctx.arc(bp.x, bp.y, 10 + pulse/2, 0, Math.PI*2); ctx.fill();
-            ctx.shadowBlur = 0;
-            ctx.strokeStyle = '#444'; ctx.lineWidth = 4;
+            ctx.shadowBlur = 15 + pulse; ctx.shadowColor = '#0f5'; ctx.beginPath(); ctx.arc(bp.x, bp.y, 10 + pulse/2, 0, Math.PI*2); ctx.fill();
+            ctx.shadowBlur = 0; ctx.strokeStyle = '#444'; ctx.lineWidth = 4;
             ctx.beginPath(); ctx.moveTo(bp.x - 35, bp.y); ctx.lineTo(bp.x + 35, bp.y); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(bp.x, bp.y - 35); ctx.lineTo(bp.x, bp.y + 35); ctx.stroke();
-            ctx.strokeStyle = '#0ff'; ctx.lineWidth = 3;
-            ctx.beginPath(); ctx.roundRect(bp.x - bp.width/2, bp.y - bp.height/2, bp.width, bp.height, 12); ctx.stroke();
+            ctx.strokeStyle = '#0ff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(bp.x - bp.width/2, bp.y - bp.height/2, bp.width, bp.height, 12); ctx.stroke();
         } else if (bp.type === 'room' || bp.type === 'room_special') {
             ctx.beginPath(); ctx.roundRect(bp.x - bp.width/2, bp.y - bp.height/2, bp.width, bp.height, bp.name.includes('Multi') ? 40 : 8); ctx.fill(); ctx.stroke();
-            if (bp.name === 'Scanner Room') {
-                ctx.fillStyle = '#0ff'; ctx.font = '10px monospace'; ctx.fillText("SCANNER", bp.x - 22, bp.y + 4);
-            }
+        } else if (bp.type === 'moonpool') {
+            ctx.fillStyle = '#111'; ctx.beginPath(); ctx.roundRect(bp.x - bp.width/2, bp.y - bp.height/2, bp.width, bp.height, 15); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.05)'; ctx.fillRect(bp.x - 50, bp.y - 60, 100, 120);
         } else if (bp.type === 'bubble') {
-            ctx.fillStyle = 'rgba(20, 60, 100, 0.4)';
-            ctx.beginPath(); ctx.arc(bp.x, bp.y, bp.width/2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = 'rgba(20, 60, 100, 0.4)'; ctx.beginPath(); ctx.arc(bp.x, bp.y, bp.width/2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
         } else {
             ctx.beginPath(); ctx.roundRect(bp.x - bp.width/2, bp.y - bp.height/2, bp.width, bp.height, 4); ctx.fill(); ctx.stroke();
         }
         ctx.shadowBlur = 0;
     });
+    state.seamoths.forEach(drawSeamoth);
     state.drones.forEach(drawDrone);
     if (state.activeBuilding) {
         ctx.globalAlpha = 0.5;
@@ -717,8 +791,8 @@ function draw() {
     }
     drawPlayer();
     ctx.restore(); 
-    if (state.player.activeDrone) {
-        ctx.strokeStyle = 'rgba(0, 255, 255, 0.2)'; ctx.lineWidth = 1;
+    if (state.player.activeDrone || state.player.activeSeamoth) {
+        ctx.strokeStyle = state.player.activeSeamoth ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 255, 255, 0.2)'; ctx.lineWidth = 1;
         for (let i = 0; i < canvas.height; i += 4) {
             ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
         }
@@ -734,7 +808,7 @@ function draw() {
         lctx.save();
         lctx.translate(-state.camera.x, -state.camera.y);
         lctx.globalCompositeOperation = 'destination-out';
-        const lightTarget = state.player.activeDrone || state.player;
+        const lightTarget = state.player.activeDrone || state.player.activeSeamoth || state.player;
         const radius = 450;
         const grad = lctx.createRadialGradient(lightTarget.x, lightTarget.y, 10, lightTarget.x, lightTarget.y, radius);
         grad.addColorStop(0, 'rgba(255, 255, 255, 1)'); grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
