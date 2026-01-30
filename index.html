@@ -181,17 +181,16 @@
   <header>
     <h1>Hellicopter Games</h1>
     <p>Offline HTML games. Have some fun :) (oh yeah no ads.)</p>
-    <nav>
-      <button class="active" data-tab="about">About</button>
-      <button data-tab="download">Download</button>
-      <button data-tab="games">Games</button>
-      <button data-tab="beta">Beta</button>
-      
+    <nav role="tablist" aria-label="Main navigation">
+      <button id="tab-about" role="tab" aria-controls="about" aria-selected="true" class="active" data-tab="about">About</button>
+      <button id="tab-download" role="tab" aria-controls="download" aria-selected="false" data-tab="download">Download</button>
+      <button id="tab-games" role="tab" aria-controls="games" aria-selected="false" data-tab="games">Games</button>
+      <button id="tab-beta" role="tab" aria-controls="beta" aria-selected="false" data-tab="beta">Beta</button>
     </nav>
   </header>
 
   <main>
-    <section class="tab active" id="download">
+    <section class="tab" id="download" role="tabpanel" tabindex="0" aria-labelledby="tab-download" hidden>
       <div class="tab-grid">
         <div class="game-card">
           <h2>Hellicopter Offline Games</h2>
@@ -204,7 +203,7 @@
       </div>
     </section>
 
-    <section class="tab" id="beta">
+    <section class="tab" id="beta" role="tabpanel" tabindex="0" aria-labelledby="tab-beta" hidden>
       <div class="tab-grid">
         <div class="game-card">
           <h2>Hellicopter Beta <span class="badge">BETA</span></h2>
@@ -217,7 +216,7 @@
       </div>
     </section>
 
-    <section class="tab" id="about">
+    <section class="tab active" id="about" role="tabpanel" tabindex="0" aria-labelledby="tab-about">
       <div class="tab-grid">
         <div class="game-card">
           <h2>About Hellicopter</h2>
@@ -228,7 +227,7 @@
       </div>
     </section>
 
-    <section class="tab" id="games">
+    <section class="tab" id="games" role="tabpanel" tabindex="0" aria-labelledby="tab-games" hidden>
       <div class="tab-grid">
         <div class="game-card">
           <h2>Snake</h2>
@@ -281,28 +280,98 @@
       </div>
     </section>
 
-    
   </main>
 
   <footer>© 2026 Hellicopter</footer>
 
   <script>
-  const tabs = document.querySelectorAll('[data-tab]');
-  const sections = document.querySelectorAll('section');
+    (function () {
+      const tabButtons = Array.from(document.querySelectorAll('nav [data-tab]'));
+      const panels = Array.from(document.querySelectorAll('section.tab'));
 
-  function showTab(id) {
-    sections.forEach(s => s.style.display = 'none');
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'block';
-  }
+      function activateTab(id, pushState = true) {
+        // Deactivate all buttons and panels
+        tabButtons.forEach(btn => {
+          btn.classList.remove('active');
+          btn.setAttribute('aria-selected', 'false');
+          btn.setAttribute('tabindex', '-1');
+        });
+        panels.forEach(p => {
+          p.classList.remove('active');
+          p.setAttribute('hidden', '');
+        });
 
-  tabs.forEach(btn => {
-    btn.addEventListener('click', () => showTab(btn.dataset.tab));
-  });
+        // Activate requested
+        const btn = document.querySelector(`[data-tab="${id}"]`);
+        const panel = document.getElementById(id);
+        if (btn) {
+          btn.classList.add('active');
+          btn.setAttribute('aria-selected', 'true');
+          btn.removeAttribute('tabindex');
+          btn.focus({ preventScroll: true });
+        }
+        if (panel) {
+          panel.classList.add('active');
+          panel.removeAttribute('hidden');
+          // keep focus logical for accessibility
+          panel.focus({ preventScroll: true });
+        }
 
-  // Default tab
-  showTab('about');
-</script>
+        // Update URL hash without creating history entries
+        if (pushState) {
+          history.replaceState(null, '', `#${id}`);
+        }
+      }
+
+      // Click handlers
+      tabButtons.forEach((btn, index) => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.tab;
+          activateTab(id);
+        });
+
+        // keyboard navigation for tabs: left/right/home/end
+        btn.addEventListener('keydown', (e) => {
+          let newIndex = null;
+          if (e.key === 'ArrowRight') newIndex = (index + 1) % tabButtons.length;
+          if (e.key === 'ArrowLeft') newIndex = (index - 1 + tabButtons.length) % tabButtons.length;
+          if (e.key === 'Home') newIndex = 0;
+          if (e.key === 'End') newIndex = tabButtons.length - 1;
+          if (newIndex !== null) {
+            e.preventDefault();
+            tabButtons[newIndex].focus();
+            // don't auto-activate on arrow navigation; activate on Enter/Space or click
+          }
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            const id = btn.dataset.tab;
+            activateTab(id);
+          }
+        });
+      });
+
+      // Activate tab from hash or default
+      function initFromHash() {
+        const hash = location.hash.replace('#', '');
+        const valid = tabButtons.some(b => b.dataset.tab === hash);
+        if (valid) {
+          activateTab(hash, false);
+        } else {
+          // default to about
+          activateTab('about', false);
+        }
+      }
+
+      // respond to back/forward
+      window.addEventListener('hashchange', () => {
+        const id = location.hash.replace('#', '') || 'about';
+        activateTab(id, false);
+      });
+
+      // Initialize on DOM ready
+      document.addEventListener('DOMContentLoaded', initFromHash);
+    })();
+  </script>
 
 </body>
 </html>
