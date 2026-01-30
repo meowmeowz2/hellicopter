@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hellicopter Offline Games</title>
+  <link rel="icon" type="image/png" href="Favicons/yes.png" sizes="16x16" />
+  <style>
+    :root {
+      --background: linear-gradient(to bottom, #0f1a20, #050d12);
+      --container: #1a2c3b;
+      --border: #5c8aff;
+      --text: #e0e0e0;
+      --accent: #5c8aff;
+      --accent-hover: #a0e6ff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--background);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      text-align: center;
+      padding: 28px 20px 12px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 2.4em;
+    }
+
+    header p {
+      opacity: 0.9;
+      margin: 6px 0 14px;
+    }
+
+    nav {
+      display: flex;
+      justify-content: center;
+      gap: 18px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    nav button {
+      background: none;
+      border: none;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 1em;
+      padding: 6px 10px;
+      border-bottom: 2px solid transparent;
+      opacity: 0.85;
+      cursor: pointer;
+    }
+
+    nav button.active,
+    nav button:hover {
+      border-color: var(--accent);
+      opacity: 1;
+    }
+
+    main {
+      flex: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 30px 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .tab {
+      display: none;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .tab.active {
+      display: flex;
+      justify-content: center;
+    }
+
+    .tab-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 22px;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .game-card {
+      background: var(--container);
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .game-card h2 {
+      margin: 0 0 8px 0;
+      font-size: 1.25em;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.75em;
+      padding: 2px 8px;
+      margin-left: 6px;
+      border-radius: 999px;
+      background: #ffb703;
+      color: #1a1200;
+      font-weight: bold;
+      vertical-align: middle;
+    }
+
+    .game-card p {
+      font-size: 0.95em;
+      opacity: 0.9;
+      margin-bottom: 12px;
+    }
+
+    .cover-image {
+      width: 100%;
+      flex: 1;
+      background: #0b1722;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+    }
+
+    .cover-image img {
+      max-width: 80%;
+      max-height: 80%;
+      image-rendering: pixelated;
+    }
+
+    .download-btn {
+      margin-top: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 14px;
+      background: var(--accent);
+      color: #0d1a25;
+      text-decoration: none;
+      font-weight: bold;
+      border-radius: 10px;
+      transition: background 0.2s ease, transform 0.1s ease;
+    }
+
+    .download-btn:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+    }
+
+    footer {
+      text-align: center;
+      padding: 22px;
+      font-size: 0.85em;
+      opacity: 0.7;
+      border-top: 1px solid #1e3550;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🚁 Hellicopter Games</h1>
+    <p>Offline HTML games pack — download once, play forever</p>
+    <nav>
+      <button class="active" data-tab="download">Download</button>
+      <button data-tab="about">About</button>
+      <button data-tab="games">Games</button>
+      <button data-tab="beta">Beta</button>
+      
+    </nav>
+  </header>
+
+  <main>
+    <section class="tab active" id="download">
+      <div class="tab-grid">
+        <div class="game-card">
+          <h2>Hellicopter Games Pack</h2>
+          <p>Stable release. A curated pack of offline HTML games.</p>
+          <div class="cover-image">
+            <img src="Favicons/yes.png" alt="Hellicopter pack image" />
+          </div>
+          <a class="download-btn" href="Hellicopter.zip" download>Download Stable Pack</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab" id="beta">
+      <div class="tab-grid">
+        <div class="game-card">
+          <h2>Hellicopter Beta <span class="badge">BETA</span></h2>
+          <p>Experimental builds with new games and unfinished ideas.</p>
+          <div class="cover-image">
+            <img src="Favicons/yes.png" alt="Hellicopter beta image" />
+          </div>
+          <a class="download-btn" href="Hellicopter-Beta.zip" download>Download Beta Pack</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab" id="about">
+      <div class="tab-grid">
+        <div class="game-card">
+          <h2>About Hellicopter</h2>
+          <p>
+            Hellicopter is a downloadable collection of offline HTML games.
+            No accounts, no tracking, no internet required after download.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab" id="games">
+      <div class="tab-grid">
+        <div class="game-card">
+          <h2>Snake</h2>
+          <p>Classic snake, offline and fast.</p>
+        </div>
+        <div class="game-card">
+          <h2>Nice Clicker</h2>
+          <p>Incremental clicking game.</p>
+        </div>
+        <div class="game-card">
+          <h2>Factory Game</h2>
+          <p>Simple factory-style automation.</p>
+        </div>
+        <div class="game-card">
+          <h2>Pizza Defense</h2>
+          <p>Pizza-themed casual game.</p>
+        </div>
+        <div class="game-card">
+          <h2>Brick Breaking Game</h2>
+          <p>Brick-breaking arcade fun.</p>
+        </div>
+        <div class="game-card">
+          <h2>Sudoku</h2>
+          <p>Number puzzle, fully offline.</p>
+        </div>
+        <div class="game-card">
+          <h2>Neon Runner</h2>
+          <p>Fast-paced endless runner.</p>
+        </div>
+        <div class="game-card">
+          <h2>Minesweeper</h2>
+          <p>Minesweeper game.</p>
+        </div>
+        <div class="game-card">
+          <h2>Cursor Clicker</h2>
+          <p>Cursor-based challenge game.</p>
+        </div>
+        <div class="game-card">
+          <h2>Cursor Clicker 2</h2>
+          <p>Cursor-based challenge game. Number 2.</p>
+        </div>
+        <div class="game-card">
+          <h2>Sword Merger</h2>
+          <p>Merge mechanics puzzle game.</p>
+        </div>
+        <div class="game-card">
+          <h2>Custom Crafter</h2>
+          <p>Crafting and experimentation.</p>
+        </div>
+      </div>
+    </section>
+
+    
+  </main>
+
+  <footer>© 2026 Hellicopter</footer>
+
+  <script>
+  const tabs = document.querySelectorAll('[data-tab]');
+  const sections = document.querySelectorAll('section');
+
+  function showTab(id) {
+    sections.forEach(s => s.style.display = 'none');
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'block';
+  }
+
+  tabs.forEach(btn => {
+    btn.addEventListener('click', () => showTab(btn.dataset.tab));
+  });
+
+  // Default tab
+  showTab('about');
+</script>
+
+</body>
+</html>
