@@ -38,6 +38,7 @@ const statusEl = document.getElementById('save-status');
 const continueBtn = document.getElementById('continue-btn');
 const saveSlotButtons = [...document.querySelectorAll('.slot-save-btn')];
 const loadSlotButtons = [...document.querySelectorAll('.slot-load-btn')];
+const deleteSlotButtons = [...document.querySelectorAll('.slot-delete-btn')];
 
 const getSlotKey = (slot) => `${SAVE_KEY}-slot-${slot}`;
 
@@ -49,6 +50,9 @@ function setMenuOpen(open) {
     continueBtn.disabled = !state.worldInitialized;
     saveSlotButtons.forEach(btn => { btn.disabled = !state.worldInitialized; });
     loadSlotButtons.forEach(btn => {
+        btn.disabled = !readSave(btn.dataset.slot);
+    });
+    deleteSlotButtons.forEach(btn => {
         btn.disabled = !readSave(btn.dataset.slot);
     });
 }
@@ -93,6 +97,18 @@ function loadGame(slot) {
     }
 }
 
+function deleteSave(slot) {
+    const saveData = readSave(slot);
+    if (!saveData) {
+        setStatus(`Slot ${slot} is already empty.`);
+        return;
+    }
+
+    localStorage.removeItem(getSlotKey(slot));
+    setStatus(`Deleted slot ${slot}.`);
+    setMenuOpen(true);
+}
+
 function startNewGame() {
     initNewGame();
     setStatus('New game started.');
@@ -124,6 +140,7 @@ window.addEventListener('load', () => {
     document.getElementById('continue-btn').addEventListener('click', () => setMenuOpen(false));
     saveSlotButtons.forEach(btn => btn.addEventListener('click', () => saveGame(btn.dataset.slot)));
     loadSlotButtons.forEach(btn => btn.addEventListener('click', () => loadGame(btn.dataset.slot)));
+    deleteSlotButtons.forEach(btn => btn.addEventListener('click', () => deleteSave(btn.dataset.slot)));
 
     const hasAnySave = loadSlotButtons.some(btn => !!readSave(btn.dataset.slot));
     if (hasAnySave) setStatus('Saves detected. Choose a slot to load.');

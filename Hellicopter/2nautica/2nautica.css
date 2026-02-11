@@ -103,9 +103,10 @@ canvas { display: block; }
 .menu-panel h1 { margin: 0; letter-spacing: 0.2em; font-size: 30px; color: #8ff; }
 .menu-panel #menu-subtitle { margin: 8px 0 18px; color: rgba(180, 235, 255, 0.8); font-size: 13px; text-transform: uppercase; letter-spacing: 0.15em; }
 .menu-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.menu-slot-grid { margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.menu-slot-grid { margin-top: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .slot-save-btn { border-color: rgba(34, 197, 94, 0.55); background: linear-gradient(135deg, rgba(16, 110, 60, 0.28), rgba(56, 189, 109, 0.16)); }
 .slot-load-btn { border-color: rgba(6, 182, 212, 0.55); background: linear-gradient(135deg, rgba(8, 90, 120, 0.28), rgba(34, 211, 238, 0.16)); }
+.slot-delete-btn { border-color: rgba(239, 68, 68, 0.6); background: linear-gradient(135deg, rgba(127, 29, 29, 0.35), rgba(220, 38, 38, 0.16)); }
 .menu-btn { padding: 10px 12px; border: 1px solid rgba(0, 255, 255, 0.45); border-radius: 10px; background: linear-gradient(135deg, rgba(0, 120, 180, 0.25), rgba(0, 255, 255, 0.12)); color: #cfffff; font-weight: 600; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease; }
 .menu-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0, 255, 255, 0.18); background: linear-gradient(135deg, rgba(0, 170, 220, 0.35), rgba(0, 255, 255, 0.2)); }
 .menu-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
