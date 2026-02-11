@@ -36,52 +36,59 @@ const uiLayer = document.getElementById('ui-layer');
 const menu = document.getElementById('main-menu');
 const statusEl = document.getElementById('save-status');
 const continueBtn = document.getElementById('continue-btn');
-const saveBtn = document.getElementById('save-btn');
+const saveSlotButtons = [...document.querySelectorAll('.slot-save-btn')];
+const loadSlotButtons = [...document.querySelectorAll('.slot-load-btn')];
+
+const getSlotKey = (slot) => `${SAVE_KEY}-slot-${slot}`;
 
 function setMenuOpen(open) {
     menu.classList.toggle('hidden', !open);
     uiLayer.style.display = open ? 'none' : 'flex';
     state.gameStatus = open ? 'menu' : 'playing';
     continueBtn.disabled = !state.worldInitialized;
-    saveBtn.disabled = !state.worldInitialized;
+    saveSlotButtons.forEach(btn => { btn.disabled = !state.worldInitialized; });
+    loadSlotButtons.forEach(btn => {
+        btn.disabled = !readSave(btn.dataset.slot);
+    });
 }
 
 function setStatus(text) {
     statusEl.textContent = text;
 }
 
-function readSave() {
+function readSave(slot = '1') {
     try {
-        const raw = localStorage.getItem(SAVE_KEY);
+        const raw = localStorage.getItem(getSlotKey(slot));
         return raw ? JSON.parse(raw) : null;
     } catch {
         return null;
     }
 }
 
-function saveGame() {
+function saveGame(slot) {
     if (!state.worldInitialized) return;
     try {
-        localStorage.setItem(SAVE_KEY, JSON.stringify(getSaveData()));
-        setStatus('Game saved successfully.');
+        localStorage.setItem(getSlotKey(slot), JSON.stringify(getSaveData()));
+        setStatus(`Saved to slot ${slot}.`);
+        setMenuOpen(true);
     } catch {
         setStatus('Save failed (storage unavailable).');
     }
 }
 
-function loadGame() {
-    const saveData = readSave();
+function loadGame(slot) {
+    const saveData = readSave(slot);
     if (!saveData) {
-        setStatus('No save found.');
+        setStatus(`Slot ${slot} is empty.`);
         return;
     }
 
     const ok = loadFromSaveData(saveData);
     if (ok) {
-        setStatus('Save loaded. Welcome back.');
+        setStatus(`Loaded slot ${slot}. Welcome back.`);
         setMenuOpen(false);
     } else {
-        setStatus('Save data is invalid.');
+        setStatus(`Slot ${slot} data is invalid.`);
     }
 }
 
@@ -114,10 +121,11 @@ window.toggleBuilderMenu = toggleBuilderMenu;
 window.addEventListener('load', () => {
     document.getElementById('new-game-btn').addEventListener('click', startNewGame);
     document.getElementById('continue-btn').addEventListener('click', () => setMenuOpen(false));
-    document.getElementById('save-btn').addEventListener('click', saveGame);
-    document.getElementById('load-btn').addEventListener('click', loadGame);
+    saveSlotButtons.forEach(btn => btn.addEventListener('click', () => saveGame(btn.dataset.slot)));
+    loadSlotButtons.forEach(btn => btn.addEventListener('click', () => loadGame(btn.dataset.slot)));
 
-    if (readSave()) setStatus('Save detected. Load to continue.');
+    const hasAnySave = loadSlotButtons.some(btn => !!readSave(btn.dataset.slot));
+    if (hasAnySave) setStatus('Saves detected. Choose a slot to load.');
     else setStatus('No save loaded. Start a new dive.');
 
     setMenuOpen(true);

@@ -109,10 +109,12 @@ export function draw() {
         seaGrad.addColorStop(0, '#1166bb'); seaGrad.addColorStop(0.1, '#004488'); seaGrad.addColorStop(1, '#000408');
         ctx.fillStyle = seaGrad; ctx.fillRect(-state.worldSize.width / 2, 0, state.worldSize.width, state.worldSize.height);
 
-        ctx.fillStyle = '#1a1a1a';
-        ctx.beginPath(); ctx.moveTo(state.terrainPoints[0].x, state.worldSize.height);
-        state.terrainPoints.forEach(p => ctx.lineTo(p.x, p.y));
-        ctx.lineTo(state.terrainPoints[state.terrainPoints.length - 1].x, state.worldSize.height); ctx.fill();
+        if (state.terrainPoints.length > 1) {
+            ctx.fillStyle = '#1a1a1a';
+            ctx.beginPath(); ctx.moveTo(state.terrainPoints[0].x, state.worldSize.height);
+            state.terrainPoints.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.lineTo(state.terrainPoints[state.terrainPoints.length - 1].x, state.worldSize.height); ctx.fill();
+        }
 
         state.fish.forEach(f => {
             ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(Math.atan2(f.vy, f.vx));

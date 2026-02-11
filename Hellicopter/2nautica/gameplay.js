@@ -87,6 +87,7 @@ export function getSaveData() {
         inventory: { ...state.inventory },
         equipment: { ...state.equipment },
         resources: state.resources,
+        terrainPoints: state.terrainPoints,
         fish: state.fish,
         stalkers: state.stalkers,
         baseParts: state.baseParts,
@@ -108,12 +109,20 @@ export function loadFromSaveData(saveData) {
     state.inventory = { ...(saveData.inventory || {}) };
     state.equipment = { ...state.equipment, ...(saveData.equipment || {}) };
     state.resources = Array.isArray(saveData.resources) ? saveData.resources : [];
+    state.terrainPoints = Array.isArray(saveData.terrainPoints) && saveData.terrainPoints.length > 1 ? saveData.terrainPoints : [];
     state.fish = Array.isArray(saveData.fish) ? saveData.fish : [];
     state.stalkers = Array.isArray(saveData.stalkers) ? saveData.stalkers : [];
     state.baseParts = Array.isArray(saveData.baseParts) ? saveData.baseParts : [];
     state.drones = Array.isArray(saveData.drones) ? saveData.drones : [];
     state.seamoths = Array.isArray(saveData.seamoths) ? saveData.seamoths : [];
     state.dayTime = typeof saveData.dayTime === 'number' ? saveData.dayTime : 0.5;
+
+    if (state.terrainPoints.length < 2) {
+        for (let x = -state.worldSize.width / 2; x <= state.worldSize.width / 2; x += 60) {
+            let y = state.worldSize.height - 400 + Math.sin(x * 0.001) * 300 + Math.sin(x * 0.005) * 60;
+            state.terrainPoints.push({ x, y });
+        }
+    }
 
     const savedBlueprints = saveData.blueprints || {};
     state.blueprints.forEach(bp => {
