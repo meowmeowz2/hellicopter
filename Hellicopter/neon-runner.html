@@ -418,6 +418,54 @@
         return false;
       }
 
+      const PLAYGROUND_SAVE_KEY = 'neon_runner_playground_save_v1';
+
+      function savePlaygroundCreation() {
+        const payload = {
+          platforms: platforms.map((p) => ({ x: p.x, y: p.y, width: p.width, height: p.height })),
+          simDifficulty,
+          custom: {
+            gravity: CONFIG.gravity.custom,
+            jump: -CONFIG.jumpForce.custom,
+            jumps: CONFIG.maxJumps.custom,
+            dash: CONFIG.dashForce.custom,
+          },
+        };
+        localStorage.setItem(PLAYGROUND_SAVE_KEY, JSON.stringify(payload));
+      }
+
+      function loadPlaygroundCreation() {
+        try {
+          const raw = localStorage.getItem(PLAYGROUND_SAVE_KEY);
+          if (!raw) return false;
+          const parsed = JSON.parse(raw);
+          if (!parsed || !Array.isArray(parsed.platforms)) return false;
+
+          platforms = parsed.platforms
+            .filter((p) => typeof p.x === 'number' && typeof p.y === 'number' && typeof p.width === 'number' && typeof p.height === 'number')
+            .map((p) => new Platform(p.x, p.y, p.width, p.height));
+
+          simDifficulty = parsed.simDifficulty || 'normal';
+          document.getElementById('sim-selector').value = simDifficulty;
+
+          if (parsed.custom) {
+            if (typeof parsed.custom.gravity === 'number') CONFIG.gravity.custom = parsed.custom.gravity;
+            if (typeof parsed.custom.jump === 'number') CONFIG.jumpForce.custom = -Math.abs(parsed.custom.jump);
+            if (typeof parsed.custom.jumps === 'number') CONFIG.maxJumps.custom = parsed.custom.jumps;
+            if (typeof parsed.custom.dash === 'number') CONFIG.dashForce.custom = parsed.custom.dash;
+          }
+
+          document.getElementById('cfg-gravity').value = CONFIG.gravity.custom;
+          document.getElementById('cfg-jump').value = Math.abs(CONFIG.jumpForce.custom);
+          document.getElementById('cfg-jumps-count').value = CONFIG.maxJumps.custom;
+          document.getElementById('cfg-dash').value = CONFIG.dashForce.custom;
+          customSettingsPanel.style.display = (simDifficulty === 'custom') ? 'block' : 'none';
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
       // --- GAME SETTINGS ---
       let difficulty = 'normal';
       let simDifficulty = 'normal'; 
@@ -494,6 +542,7 @@
               }
               if (e.code === 'KeyC') {
                   platforms = [];
+                  savePlaygroundCreation();
                   shockwaves.push(new Shockwave(player.x + player.size/2, player.y + player.size/2, '#ff0000'));
               }
               if (e.code === 'KeyR') {
@@ -514,6 +563,7 @@
                       shockwaves.push(new Shockwave(player.x + player.size/2, player.y + player.size/2, '#bd00ff'));
                   }
                   flightToggleText.innerText = isFlying ? 'ON' : 'OFF';
+                  savePlaygroundCreation();
               }
           }
       });
@@ -545,6 +595,7 @@
                     if (hit) shockwaves.push(new Shockwave(worldX, worldY, '#ff3333'));
                     return !hit;
                 });
+                savePlaygroundCreation();
             }
         }
         mouse.active = true;
@@ -555,6 +606,7 @@
             if (currentDragBox.w > 10 && currentDragBox.h > 10) {
                 platforms.push(new Platform(currentDragBox.x, currentDragBox.y, currentDragBox.w, currentDragBox.h));
                 shockwaves.push(new Shockwave(currentDragBox.x + currentDragBox.w/2, currentDragBox.y + currentDragBox.h/2, CONFIG.colors.playground));
+                savePlaygroundCreation();
             }
         }
         dragStart = null; currentDragBox = null; mouse.active = false;
@@ -565,6 +617,7 @@
       window.updateSimDifficulty = function(val) {
         simDifficulty = val;
         customSettingsPanel.style.display = (val === 'custom') ? 'block' : 'none';
+        savePlaygroundCreation();
         if (playgroundMode === 'play') {
             pgStatusText.innerText = `MODE: TESTING (${simDifficulty.toUpperCase()})`;
             pgStatusText.style.color = CONFIG.colors[simDifficulty];
@@ -572,10 +625,10 @@
       };
 
       // Custom Physics Listeners
-      document.getElementById('cfg-gravity').addEventListener('input', (e) => CONFIG.gravity.custom = parseFloat(e.target.value));
-      document.getElementById('cfg-jump').addEventListener('input', (e) => CONFIG.jumpForce.custom = -parseFloat(e.target.value));
-      document.getElementById('cfg-jumps-count').addEventListener('input', (e) => CONFIG.maxJumps.custom = parseInt(e.target.value));
-      document.getElementById('cfg-dash').addEventListener('input', (e) => CONFIG.dashForce.custom = parseFloat(e.target.value));
+      document.getElementById('cfg-gravity').addEventListener('input', (e) => { CONFIG.gravity.custom = parseFloat(e.target.value); savePlaygroundCreation(); });
+      document.getElementById('cfg-jump').addEventListener('input', (e) => { CONFIG.jumpForce.custom = -parseFloat(e.target.value); savePlaygroundCreation(); });
+      document.getElementById('cfg-jumps-count').addEventListener('input', (e) => { CONFIG.maxJumps.custom = parseInt(e.target.value); savePlaygroundCreation(); });
+      document.getElementById('cfg-dash').addEventListener('input', (e) => { CONFIG.dashForce.custom = parseFloat(e.target.value); savePlaygroundCreation(); });
 
       function fillRoundedRect(x, y, w, h, r) {
         ctx.beginPath();
@@ -850,8 +903,11 @@
             nextPlatformX = 1250; for (let i = 0; i < 20; i++) spawnPlatform();
             pgUI.style.display = 'none';
         } else {
+            const loaded = loadPlaygroundCreation();
+            if (!loaded) platforms = [];
             nextPlatformX = 0; pgUI.style.display = 'block';
             pgStatusText.innerText = 'MODE: EDITING'; pgStatusText.style.color = '#bd00ff';
+            savePlaygroundCreation();
         }
         mainMenu.style.display = 'none'; gameOverMenu.style.display = 'none';
         hud.style.display = 'flex'; diffTag.style.display = 'block';
