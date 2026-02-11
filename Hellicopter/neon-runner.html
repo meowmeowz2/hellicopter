@@ -130,6 +130,25 @@
         display: none;
       }
 
+      .projects-panel {
+        width: min(760px, 92vw);
+        max-height: 86vh;
+        overflow: hidden;
+        padding: 22px;
+        border-radius: 14px;
+        border: 2px solid rgba(189, 0, 255, 0.45);
+        background: rgba(18, 8, 26, 0.92);
+        box-shadow: 0 0 45px rgba(189, 0, 255, 0.26), inset 0 0 24px rgba(189, 0, 255, 0.1);
+      }
+
+      .projects-subtitle {
+        font-size: 11px;
+        letter-spacing: 1.5px;
+        color: rgba(230, 195, 255, 0.82);
+        text-transform: uppercase;
+        margin-top: -2px;
+      }
+
       .project-list {
         width: 420px;
         max-height: 320px;
@@ -151,9 +170,28 @@
         gap: 8px;
       }
 
+      .project-item.active {
+        border-color: #00f2ff;
+        box-shadow: 0 0 0 1px rgba(0, 242, 255, 0.5), 0 0 22px rgba(0, 242, 255, 0.2);
+      }
+
+      .project-name {
+        font-size: 13px;
+        font-weight: bold;
+      }
+
       .project-meta {
         font-size: 10px;
         opacity: 0.85;
+      }
+
+      .project-empty {
+        text-align: center;
+        color: rgba(240, 220, 255, 0.9);
+        padding: 24px 12px;
+        border: 1px dashed rgba(189, 0, 255, 0.5);
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.3);
       }
 
       .project-actions {
@@ -164,6 +202,15 @@
       .menu-btn.small {
         font-size: 10px;
         padding: 8px 10px;
+      }
+
+      #pg-save-project {
+        border-color: #00f2ff;
+      }
+
+      #pg-save-project.autosaved {
+        color: #00f2ff;
+        box-shadow: 0 0 12px rgba(0, 242, 255, 0.35);
       }
 
       .pg-mode-indicator {
@@ -390,17 +437,20 @@
         </div>
 
         <div class="pg-save-row">
-            <button id="pg-save-project" class="pg-mini-btn">Save Snapshot</button>
+            <button id="pg-save-project" class="pg-mini-btn">Save Project</button>
             <button id="pg-projects-btn" class="pg-mini-btn">Projects</button>
         </div>
       </div>
 
       <div id="playground-projects" class="overlay">
-        <div class="menu-title" style="font-size:40px; margin-bottom: 8px; color:#bd00ff; text-shadow: 0 0 20px #bd00ff;">PLAYGROUND<br/>PROJECTS</div>
-        <div class="project-list" id="project-list"></div>
-        <div class="button-group" style="width:420px;">
-          <button class="menu-btn playground" onclick="createNewPlaygroundProject()">New Empty Project</button>
-          <button class="menu-btn" onclick="closeProjectSelection()">Back</button>
+        <div class="projects-panel">
+          <div class="menu-title" style="font-size:34px; margin-bottom: 6px; color:#bd00ff; text-shadow: 0 0 20px #bd00ff;">PLAYGROUND PROJECTS</div>
+          <div class="projects-subtitle">Open, autosave, and manage your sandbox files</div>
+          <div class="project-list" id="project-list"></div>
+          <div class="button-group" style="width:100%; max-width:420px; margin: 0 auto;">
+            <button class="menu-btn playground" onclick="createNewPlaygroundProject()">New Empty Project</button>
+            <button class="menu-btn" onclick="closeProjectSelection()">Back</button>
+          </div>
         </div>
       </div>
 
@@ -471,6 +521,7 @@
       const customSettingsPanel = document.getElementById('custom-settings');
       const projectSelector = document.getElementById('playground-projects');
       const projectListEl = document.getElementById('project-list');
+      const saveProjectBtn = document.getElementById('pg-save-project');
 
       // --- PERSISTENCE ---
       const highscores = {
@@ -501,6 +552,7 @@
       const PLAYGROUND_PROJECTS_KEY = 'neon_runner_playground_projects_v2';
       let playgroundProjects = [];
       let activeProjectId = null;
+      let autoSaveTimer = null;
 
       function getProjectPayload() {
         return {
@@ -569,16 +621,36 @@
         return project;
       }
 
-      function saveToActiveProjectSnapshot() {
+      function saveActiveProject({ createIfMissing = true, visualPulse = false } = {}) {
         if (difficulty !== 'playground' || gameState !== 'playing') return;
-        const snapshot = createProjectSnapshot({ cloneCurrent: true });
-        activeProjectId = snapshot.id;
+        let project = playgroundProjects.find((p) => p.id === activeProjectId);
+        if (!project && createIfMissing) {
+          project = createProjectSnapshot({ cloneCurrent: false });
+          activeProjectId = project.id;
+        }
+        if (!project) return;
+        project.payload = getProjectPayload();
+        project.updatedAt = Date.now();
+        persistPlaygroundProjects();
+
+        if (visualPulse) {
+          saveProjectBtn.classList.add('autosaved');
+          setTimeout(() => saveProjectBtn.classList.remove('autosaved'), 420);
+        }
+      }
+
+      function queueAutoSave() {
+        if (difficulty !== 'playground' || gameState !== 'playing') return;
+        if (autoSaveTimer) clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(() => {
+          saveActiveProject({ createIfMissing: true, visualPulse: true });
+        }, 250);
       }
 
       function renderProjectList() {
         projectListEl.innerHTML = '';
         if (!playgroundProjects.length) {
-          projectListEl.innerHTML = '<div class="project-item"><div>No projects yet. Create one to begin.</div></div>';
+          projectListEl.innerHTML = '<div class="project-empty">No projects yet. Create one to begin.</div>';
           return;
         }
 
@@ -587,12 +659,15 @@
           .sort((a, b) => b.createdAt - a.createdAt)
           .forEach((project) => {
             const row = document.createElement('div');
-            row.className = 'project-item';
-            const date = new Date(project.createdAt || Date.now()).toLocaleString();
+            const isActive = project.id === activeProjectId;
+            row.className = `project-item ${isActive ? 'active' : ''}`;
+            const createdDate = new Date(project.createdAt || Date.now()).toLocaleString();
+            const updatedDate = new Date(project.updatedAt || project.createdAt || Date.now()).toLocaleString();
             row.innerHTML = `
               <div>
-                <div>${project.name}</div>
-                <div class="project-meta">${(project.payload?.platforms || []).length} platforms • ${date}</div>
+                <div class="project-name">${project.name}${isActive ? ' • ACTIVE' : ''}</div>
+                <div class="project-meta">${(project.payload?.platforms || []).length} platforms • created ${createdDate}</div>
+                <div class="project-meta">updated ${updatedDate}</div>
               </div>
               <div class="project-actions">
                 <button class="menu-btn small playground" data-action="open" data-id="${project.id}">Open</button>
@@ -715,6 +790,7 @@
               if (e.code === 'KeyC') {
                   platforms = [];
                   shockwaves.push(new Shockwave(player.x + player.size/2, player.y + player.size/2, '#ff0000'));
+                  queueAutoSave();
               }
               if (e.code === 'KeyR') {
                   player.reset();
@@ -734,6 +810,7 @@
                       shockwaves.push(new Shockwave(player.x + player.size/2, player.y + player.size/2, '#bd00ff'));
                   }
                   flightToggleText.innerText = isFlying ? 'ON' : 'OFF';
+                  queueAutoSave();
               }
           }
       });
@@ -765,6 +842,7 @@
                     if (hit) shockwaves.push(new Shockwave(worldX, worldY, '#ff3333'));
                     return !hit;
                 });
+                queueAutoSave();
             }
         }
         mouse.active = true;
@@ -775,6 +853,7 @@
             if (currentDragBox.w > 10 && currentDragBox.h > 10) {
                 platforms.push(new Platform(currentDragBox.x, currentDragBox.y, currentDragBox.w, currentDragBox.h));
                 shockwaves.push(new Shockwave(currentDragBox.x + currentDragBox.w/2, currentDragBox.y + currentDragBox.h/2, CONFIG.colors.playground));
+                queueAutoSave();
             }
         }
         dragStart = null; currentDragBox = null; mouse.active = false;
@@ -785,6 +864,7 @@
       window.updateSimDifficulty = function(val) {
         simDifficulty = val;
         customSettingsPanel.style.display = (val === 'custom') ? 'block' : 'none';
+        queueAutoSave();
         if (playgroundMode === 'play') {
             pgStatusText.innerText = `MODE: TESTING (${simDifficulty.toUpperCase()})`;
             pgStatusText.style.color = CONFIG.colors[simDifficulty];
@@ -792,13 +872,13 @@
       };
 
       // Custom Physics Listeners
-      document.getElementById('cfg-gravity').addEventListener('input', (e) => { CONFIG.gravity.custom = parseFloat(e.target.value); });
-      document.getElementById('cfg-jump').addEventListener('input', (e) => { CONFIG.jumpForce.custom = -parseFloat(e.target.value); });
-      document.getElementById('cfg-jumps-count').addEventListener('input', (e) => { CONFIG.maxJumps.custom = parseInt(e.target.value); });
-      document.getElementById('cfg-dash').addEventListener('input', (e) => { CONFIG.dashForce.custom = parseFloat(e.target.value); });
+      document.getElementById('cfg-gravity').addEventListener('input', (e) => { CONFIG.gravity.custom = parseFloat(e.target.value); queueAutoSave(); });
+      document.getElementById('cfg-jump').addEventListener('input', (e) => { CONFIG.jumpForce.custom = -parseFloat(e.target.value); queueAutoSave(); });
+      document.getElementById('cfg-jumps-count').addEventListener('input', (e) => { CONFIG.maxJumps.custom = parseInt(e.target.value); queueAutoSave(); });
+      document.getElementById('cfg-dash').addEventListener('input', (e) => { CONFIG.dashForce.custom = parseFloat(e.target.value); queueAutoSave(); });
 
       document.getElementById('pg-save-project').addEventListener('click', () => {
-        saveToActiveProjectSnapshot();
+        saveActiveProject({ createIfMissing: true, visualPulse: true });
       });
       document.getElementById('pg-projects-btn').addEventListener('click', () => {
         backToMenu();
