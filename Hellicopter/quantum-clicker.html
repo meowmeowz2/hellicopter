@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quantum Foundry Clicker</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, sans-serif;
+      background: radial-gradient(circle at top, #1d1442 0%, #0b0e1a 45%, #05070f 100%);
+      color: #eaf1ff;
+      min-height: 100vh;
+    }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 20px; }
+    h1 { margin: 0; font-size: clamp(28px, 5vw, 46px); letter-spacing: 1px; }
+    .subtitle { color: #9ac0ff; margin: 6px 0 0; }
+    .grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 18px; margin-top: 18px; }
+    .card {
+      background: linear-gradient(160deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+      border: 1px solid rgba(162, 121, 255, 0.35);
+      border-radius: 14px;
+      padding: 16px;
+      backdrop-filter: blur(4px);
+    }
+    .resources { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .stat { background: rgba(0,0,0,0.25); border-radius: 10px; padding: 10px; }
+    .stat .k { font-size: 11px; opacity: 0.75; text-transform: uppercase; letter-spacing: 1px; }
+    .stat .v { font-size: 24px; font-weight: 700; margin-top: 2px; }
+    #clickBtn {
+      width: 100%; margin-top: 14px; border: 0; cursor: pointer;
+      padding: 26px; border-radius: 14px;
+      background: linear-gradient(135deg, #5d2bff, #2bbcff);
+      color: #fff; font-size: 24px; font-weight: 800; letter-spacing: 1px;
+      box-shadow: 0 10px 25px rgba(43, 188, 255, 0.35);
+      transition: transform .08s, filter .2s;
+    }
+    #clickBtn:active { transform: scale(0.985); }
+    #clickBtn:hover { filter: brightness(1.08); }
+    .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .tiny { font-size: 12px; color: #acc2f2; }
+    .section-title { margin: 0 0 10px; font-size: 18px; color: #c9d9ff; }
+    .list { display: grid; gap: 9px; }
+    .item {
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px; padding: 10px;
+    }
+    .item button {
+      border: 0; border-radius: 8px; padding: 8px 10px; cursor: pointer;
+      background: linear-gradient(135deg, #3f72ff, #5a9dff); color: #fff; font-weight: 600;
+    }
+    .item button:disabled { opacity: 0.35; cursor: not-allowed; }
+    .quest {
+      border-left: 4px solid #7ef9ff;
+      background: rgba(126, 249, 255, 0.08);
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 10px;
+    }
+    .muted { opacity: .8; }
+    .footer { margin-top: 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .danger { background: linear-gradient(135deg,#6b1730,#b22d53) !important; }
+    .good { color: #8bffcf; }
+    .flash { animation: pulse .35s ease; }
+    @keyframes pulse { from { transform: scale(1); } 50% { transform: scale(1.02); } to { transform: scale(1); } }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Quantum Foundry Clicker</h1>
+  <p class="subtitle">Forge stellar cores. Chain combos. Automate everything. Ascend smarter.</p>
+
+  <div class="grid">
+    <div class="card">
+      <div class="resources">
+        <div class="stat"><div class="k">Energy</div><div class="v" id="energy">0</div></div>
+        <div class="stat"><div class="k">Energy / sec</div><div class="v" id="eps">0</div></div>
+        <div class="stat"><div class="k">Click Power</div><div class="v" id="clickPower">1</div></div>
+        <div class="stat"><div class="k">Combo</div><div class="v" id="combo">x1.00</div></div>
+      </div>
+      <button id="clickBtn">TAP THE CORE</button>
+      <div class="row tiny">
+        <span>Crit: <span id="crit">10%</span> • x<span id="critMul">2.0</span></span>
+        <span>Prestige Bonus: <span id="prestigeBonus" class="good">+0%</span></span>
+      </div>
+      <div class="quest" id="quest"></div>
+      <div class="footer tiny">
+        <span class="muted">Autosave every 5s</span>
+        <button id="resetBtn" class="danger" style="border:0;padding:8px 10px;border-radius:8px;color:white;cursor:pointer;">Hard Reset</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 class="section-title">Automation Modules</h3>
+      <div id="generators" class="list"></div>
+    </div>
+
+    <div class="card">
+      <h3 class="section-title">Upgrades</h3>
+      <div id="upgrades" class="list"></div>
+    </div>
+
+    <div class="card">
+      <h3 class="section-title">Ascension</h3>
+      <p class="tiny muted">Convert lifetime energy into <b>Quantum Cores</b>. Each core gives +8% all gains.</p>
+      <div class="resources" style="grid-template-columns:1fr 1fr; margin-bottom:10px;">
+        <div class="stat"><div class="k">Quantum Cores</div><div class="v" id="cores">0</div></div>
+        <div class="stat"><div class="k">Cores if Ascend</div><div class="v" id="coresGain">0</div></div>
+      </div>
+      <button id="ascendBtn" style="width:100%;border:0;padding:12px;border-radius:10px;background:linear-gradient(135deg,#ff8a00,#ff4d6d);color:white;font-weight:700;cursor:pointer;">Ascend</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const SAVE_KEY = 'quantum_foundry_clicker_v1';
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => {
+    if (n < 1000) return n.toFixed(1).replace('.0','');
+    const units = ['K','M','B','T','Qa','Qi'];
+    let i = -1;
+    while (n >= 1000 && i < units.length - 1) { n /= 1000; i++; }
+    return n.toFixed(2) + units[i];
+  };
+
+  const template = {
+    energy: 0,
+    lifetimeEnergy: 0,
+    clickPower: 1,
+    critChance: 0.1,
+    critMult: 2,
+    combo: 1,
+    comboTimer: 0,
+    cores: 0,
+    gens: [0,0,0,0],
+    genBase: [0.2, 1.3, 8, 34],
+    upgrades: {},
+    quest: { type: 'clicks', target: 40, progress: 0, reward: 80, label: 'Click 40 times' }
+  };
+
+  const genDefs = [
+    { name: 'Nano Extractor', baseCost: 15, growth: 1.16 },
+    { name: 'Fusion Press', baseCost: 110, growth: 1.18 },
+    { name: 'Temporal Lattice', baseCost: 950, growth: 1.22 },
+    { name: 'Void Harvester', baseCost: 8200, growth: 1.27 }
+  ];
+
+  const upgradeDefs = [
+    { id: 'hands', name: 'Servo Hands', cost: 80, desc: '+1 click power', apply: s => s.clickPower += 1 },
+    { id: 'overclock', name: 'Overclock Core', cost: 400, desc: '+35% module output', apply: s => s.genBase = s.genBase.map(v => v * 1.35) },
+    { id: 'crit', name: 'Critical Lens', cost: 900, desc: '+8% crit chance', apply: s => s.critChance = Math.min(0.6, s.critChance + 0.08) },
+    { id: 'combo', name: 'Combo Stabilizer', cost: 1600, desc: 'Combo decays 35% slower', apply: s => s.comboDecay = (s.comboDecay || 1) * 0.65 },
+    { id: 'quantum', name: 'Quantum Feedback', cost: 3600, desc: '+3 click power and +0.4 EPS base', apply: s => { s.clickPower += 3; s.genBase[0] += 0.4; } },
+  ];
+
+  const state = Object.assign({}, template, JSON.parse(localStorage.getItem(SAVE_KEY) || '{}'));
+  state.comboDecay = state.comboDecay || 1;
+
+  function prestigeMult() { return 1 + state.cores * 0.08; }
+  function totalEps() {
+    let eps = 0;
+    for (let i=0;i<state.gens.length;i++) eps += state.gens[i] * state.genBase[i];
+    return eps * prestigeMult();
+  }
+  function genCost(i) { return Math.floor(genDefs[i].baseCost * Math.pow(genDefs[i].growth, state.gens[i])); }
+  function nextCoreGain() { return Math.floor(Math.sqrt(state.lifetimeEnergy / 12000)); }
+
+  function newQuest() {
+    const quests = [
+      { type: 'clicks', target: 60, reward: 220, label: 'Click 60 times' },
+      { type: 'energy', target: 900, reward: 280, label: 'Generate 900 energy' },
+      { type: 'buy', target: 8, reward: 350, label: 'Buy 8 modules' }
+    ];
+    const q = quests[Math.floor(Math.random()*quests.length)];
+    state.quest = { ...q, progress: 0 };
+  }
+
+  function progressQuest(type, amt=1) {
+    if (state.quest.type !== type) return;
+    state.quest.progress += amt;
+    if (state.quest.progress >= state.quest.target) {
+      state.energy += state.quest.reward;
+      newQuest();
+      $('quest').classList.add('flash');
+      setTimeout(() => $('quest').classList.remove('flash'), 220);
+    }
+  }
+
+  function save() { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }
+
+  function render() {
+    $('energy').textContent = fmt(state.energy);
+    $('eps').textContent = fmt(totalEps());
+    $('clickPower').textContent = fmt(state.clickPower);
+    $('combo').textContent = `x${state.combo.toFixed(2)}`;
+    $('crit').textContent = `${Math.round(state.critChance * 100)}%`;
+    $('critMul').textContent = state.critMult.toFixed(1);
+    $('cores').textContent = fmt(state.cores);
+    $('coresGain').textContent = fmt(nextCoreGain());
+    $('prestigeBonus').textContent = `+${Math.round((prestigeMult()-1)*100)}%`;
+    $('quest').innerHTML = `<b>Quest:</b> ${state.quest.label}<br><span class='tiny'>${fmt(state.quest.progress)} / ${fmt(state.quest.target)} • Reward ${fmt(state.quest.reward)} energy</span>`;
+
+    const genWrap = $('generators');
+    genWrap.innerHTML = '';
+    genDefs.forEach((g, i) => {
+      const c = genCost(i);
+      const row = document.createElement('div');
+      row.className = 'item';
+      row.innerHTML = `<div class='row'><b>${g.name}</b><span class='tiny'>Owned: ${state.gens[i]}</span></div>
+      <div class='row tiny'><span>+${fmt(state.genBase[i] * prestigeMult())}/s each</span><button ${state.energy < c ? 'disabled' : ''}>Buy • ${fmt(c)}</button></div>`;
+      row.querySelector('button').onclick = () => {
+        if (state.energy < c) return;
+        state.energy -= c; state.gens[i]++; progressQuest('buy', 1); render();
+      };
+      genWrap.appendChild(row);
+    });
+
+    const upWrap = $('upgrades');
+    upWrap.innerHTML = '';
+    upgradeDefs.forEach((u) => {
+      const owned = !!state.upgrades[u.id];
+      const row = document.createElement('div');
+      row.className = 'item';
+      row.innerHTML = `<div class='row'><b>${u.name}</b><span class='tiny'>${owned ? 'Owned' : fmt(u.cost)}</span></div>
+      <div class='row tiny'><span>${u.desc}</span><button ${owned || state.energy < u.cost ? 'disabled' : ''}>${owned ? '✓' : 'Buy'}</button></div>`;
+      row.querySelector('button').onclick = () => {
+        if (owned || state.energy < u.cost) return;
+        state.energy -= u.cost; state.upgrades[u.id] = true; u.apply(state); render();
+      };
+      upWrap.appendChild(row);
+    });
+  }
+
+  $('clickBtn').addEventListener('click', () => {
+    let gain = state.clickPower * state.combo * prestigeMult();
+    if (Math.random() < state.critChance) gain *= state.critMult;
+    state.energy += gain;
+    state.lifetimeEnergy += gain;
+    state.combo = Math.min(12, state.combo + 0.06);
+    state.comboTimer = 3;
+    progressQuest('clicks', 1);
+    progressQuest('energy', gain);
+    render();
+  });
+
+  $('ascendBtn').addEventListener('click', () => {
+    const gain = nextCoreGain();
+    if (gain < 1) return;
+    if (!confirm(`Ascend for ${gain} Quantum Cores?`)) return;
+    state.cores += gain;
+    state.energy = 0;
+    state.lifetimeEnergy = 0;
+    state.clickPower = 1;
+    state.critChance = 0.1;
+    state.critMult = 2;
+    state.combo = 1;
+    state.comboTimer = 0;
+    state.gens = [0,0,0,0];
+    state.genBase = [0.2,1.3,8,34];
+    state.upgrades = {};
+    state.comboDecay = 1;
+    newQuest();
+    render();
+  });
+
+  $('resetBtn').addEventListener('click', () => {
+    if (!confirm('Hard reset EVERYTHING?')) return;
+    localStorage.removeItem(SAVE_KEY);
+    Object.assign(state, JSON.parse(JSON.stringify(template)));
+    state.comboDecay = 1;
+    render();
+  });
+
+  let last = performance.now();
+  function tick(now) {
+    const dt = Math.min(0.2, (now - last) / 1000);
+    last = now;
+    const gen = totalEps() * dt;
+    state.energy += gen;
+    state.lifetimeEnergy += gen;
+    progressQuest('energy', gen);
+
+    if (state.comboTimer > 0) state.comboTimer -= dt;
+    else if (state.combo > 1) state.combo = Math.max(1, state.combo - dt * 0.25 * state.comboDecay);
+
+    render();
+    requestAnimationFrame(tick);
+  }
+
+  if (!state.quest || !state.quest.type) newQuest();
+  render();
+  requestAnimationFrame(tick);
+  setInterval(save, 5000);
+})();
+</script>
+</body>
+</html>
