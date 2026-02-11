@@ -102,6 +102,70 @@
         min-width: 250px;
       }
 
+      .pg-save-row {
+        margin-top: 10px;
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .pg-mini-btn {
+        background: #1a0f24;
+        border: 1px solid #bd00ff;
+        color: #f4d3ff;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-family: 'Orbitron', sans-serif;
+        font-size: 10px;
+        cursor: pointer;
+        text-transform: uppercase;
+      }
+
+      .pg-mini-btn:hover {
+        background: #bd00ff;
+        color: #111;
+      }
+
+      #playground-projects {
+        display: none;
+      }
+
+      .project-list {
+        width: 420px;
+        max-height: 320px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin: 12px 0 8px;
+      }
+
+      .project-item {
+        border: 1px solid rgba(189, 0, 255, 0.5);
+        background: rgba(40, 10, 52, 0.45);
+        border-radius: 8px;
+        padding: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .project-meta {
+        font-size: 10px;
+        opacity: 0.85;
+      }
+
+      .project-actions {
+        display: flex;
+        gap: 6px;
+      }
+
+      .menu-btn.small {
+        font-size: 10px;
+        padding: 8px 10px;
+      }
+
       .pg-mode-indicator {
         font-size: 18px;
         font-weight: bold;
@@ -324,6 +388,20 @@
                 <input type="range" id="cfg-dash" min="10" max="60" step="2" value="24">
             </div>
         </div>
+
+        <div class="pg-save-row">
+            <button id="pg-save-project" class="pg-mini-btn">Save Snapshot</button>
+            <button id="pg-projects-btn" class="pg-mini-btn">Projects</button>
+        </div>
+      </div>
+
+      <div id="playground-projects" class="overlay">
+        <div class="menu-title" style="font-size:40px; margin-bottom: 8px; color:#bd00ff; text-shadow: 0 0 20px #bd00ff;">PLAYGROUND<br/>PROJECTS</div>
+        <div class="project-list" id="project-list"></div>
+        <div class="button-group" style="width:420px;">
+          <button class="menu-btn playground" onclick="createNewPlaygroundProject()">New Empty Project</button>
+          <button class="menu-btn" onclick="closeProjectSelection()">Back</button>
+        </div>
       </div>
 
       <div id="diff-tag" class="difficulty-indicator">NORMAL</div>
@@ -347,7 +425,7 @@
             Master Protocol
             <span class="best-label">Best: <span id="best-master">0</span></span>
           </button>
-          <button class="menu-btn playground" onclick="startGame('playground')">
+          <button class="menu-btn playground" onclick="openPlaygroundProjects()">
             Playground Mode
             <span class="best-label">Sandbox / Build</span>
           </button>
@@ -391,6 +469,8 @@
       const pgUI = document.getElementById('playground-ui');
       const pgStatusText = document.getElementById('pg-status-text');
       const customSettingsPanel = document.getElementById('custom-settings');
+      const projectSelector = document.getElementById('playground-projects');
+      const projectListEl = document.getElementById('project-list');
 
       // --- PERSISTENCE ---
       const highscores = {
@@ -418,10 +498,12 @@
         return false;
       }
 
-      const PLAYGROUND_SAVE_KEY = 'neon_runner_playground_save_v1';
+      const PLAYGROUND_PROJECTS_KEY = 'neon_runner_playground_projects_v2';
+      let playgroundProjects = [];
+      let activeProjectId = null;
 
-      function savePlaygroundCreation() {
-        const payload = {
+      function getProjectPayload() {
+        return {
           platforms: platforms.map((p) => ({ x: p.x, y: p.y, width: p.width, height: p.height })),
           simDifficulty,
           custom: {
@@ -431,40 +513,130 @@
             dash: CONFIG.dashForce.custom,
           },
         };
-        localStorage.setItem(PLAYGROUND_SAVE_KEY, JSON.stringify(payload));
       }
 
-      function loadPlaygroundCreation() {
+      function persistPlaygroundProjects() {
+        localStorage.setItem(PLAYGROUND_PROJECTS_KEY, JSON.stringify(playgroundProjects));
+      }
+
+      function loadProjectRegistry() {
         try {
-          const raw = localStorage.getItem(PLAYGROUND_SAVE_KEY);
-          if (!raw) return false;
-          const parsed = JSON.parse(raw);
-          if (!parsed || !Array.isArray(parsed.platforms)) return false;
-
-          platforms = parsed.platforms
-            .filter((p) => typeof p.x === 'number' && typeof p.y === 'number' && typeof p.width === 'number' && typeof p.height === 'number')
-            .map((p) => new Platform(p.x, p.y, p.width, p.height));
-
-          simDifficulty = parsed.simDifficulty || 'normal';
-          document.getElementById('sim-selector').value = simDifficulty;
-
-          if (parsed.custom) {
-            if (typeof parsed.custom.gravity === 'number') CONFIG.gravity.custom = parsed.custom.gravity;
-            if (typeof parsed.custom.jump === 'number') CONFIG.jumpForce.custom = -Math.abs(parsed.custom.jump);
-            if (typeof parsed.custom.jumps === 'number') CONFIG.maxJumps.custom = parsed.custom.jumps;
-            if (typeof parsed.custom.dash === 'number') CONFIG.dashForce.custom = parsed.custom.dash;
-          }
-
-          document.getElementById('cfg-gravity').value = CONFIG.gravity.custom;
-          document.getElementById('cfg-jump').value = Math.abs(CONFIG.jumpForce.custom);
-          document.getElementById('cfg-jumps-count').value = CONFIG.maxJumps.custom;
-          document.getElementById('cfg-dash').value = CONFIG.dashForce.custom;
-          customSettingsPanel.style.display = (simDifficulty === 'custom') ? 'block' : 'none';
-          return true;
+          const raw = localStorage.getItem(PLAYGROUND_PROJECTS_KEY);
+          const parsed = raw ? JSON.parse(raw) : [];
+          playgroundProjects = Array.isArray(parsed) ? parsed : [];
         } catch {
-          return false;
+          playgroundProjects = [];
         }
       }
+
+      function applyProjectPayload(payload) {
+        if (!payload) return;
+        platforms = Array.isArray(payload.platforms)
+          ? payload.platforms
+              .filter((p) => typeof p.x === 'number' && typeof p.y === 'number' && typeof p.width === 'number' && typeof p.height === 'number')
+              .map((p) => new Platform(p.x, p.y, p.width, p.height))
+          : [];
+
+        simDifficulty = payload.simDifficulty || 'normal';
+        document.getElementById('sim-selector').value = simDifficulty;
+
+        if (payload.custom) {
+          if (typeof payload.custom.gravity === 'number') CONFIG.gravity.custom = payload.custom.gravity;
+          if (typeof payload.custom.jump === 'number') CONFIG.jumpForce.custom = -Math.abs(payload.custom.jump);
+          if (typeof payload.custom.jumps === 'number') CONFIG.maxJumps.custom = payload.custom.jumps;
+          if (typeof payload.custom.dash === 'number') CONFIG.dashForce.custom = payload.custom.dash;
+        }
+
+        document.getElementById('cfg-gravity').value = CONFIG.gravity.custom;
+        document.getElementById('cfg-jump').value = Math.abs(CONFIG.jumpForce.custom);
+        document.getElementById('cfg-jumps-count').value = CONFIG.maxJumps.custom;
+        document.getElementById('cfg-dash').value = CONFIG.dashForce.custom;
+        customSettingsPanel.style.display = (simDifficulty === 'custom') ? 'block' : 'none';
+      }
+
+      function createProjectSnapshot({ cloneCurrent = true } = {}) {
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const project = {
+          id,
+          name: `Project ${playgroundProjects.length + 1}`,
+          createdAt: Date.now(),
+          payload: cloneCurrent
+            ? getProjectPayload()
+            : { platforms: [], simDifficulty: 'normal', custom: { gravity: 0.45, jump: 10.5, jumps: 2, dash: 24 } }
+        };
+        playgroundProjects.push(project);
+        persistPlaygroundProjects();
+        return project;
+      }
+
+      function saveToActiveProjectSnapshot() {
+        if (difficulty !== 'playground' || gameState !== 'playing') return;
+        const snapshot = createProjectSnapshot({ cloneCurrent: true });
+        activeProjectId = snapshot.id;
+      }
+
+      function renderProjectList() {
+        projectListEl.innerHTML = '';
+        if (!playgroundProjects.length) {
+          projectListEl.innerHTML = '<div class="project-item"><div>No projects yet. Create one to begin.</div></div>';
+          return;
+        }
+
+        playgroundProjects
+          .slice()
+          .sort((a, b) => b.createdAt - a.createdAt)
+          .forEach((project) => {
+            const row = document.createElement('div');
+            row.className = 'project-item';
+            const date = new Date(project.createdAt || Date.now()).toLocaleString();
+            row.innerHTML = `
+              <div>
+                <div>${project.name}</div>
+                <div class="project-meta">${(project.payload?.platforms || []).length} platforms • ${date}</div>
+              </div>
+              <div class="project-actions">
+                <button class="menu-btn small playground" data-action="open" data-id="${project.id}">Open</button>
+                <button class="menu-btn small hard" data-action="delete" data-id="${project.id}">Delete</button>
+              </div>
+            `;
+            projectListEl.appendChild(row);
+          });
+      }
+
+      window.openPlaygroundProjects = function() {
+        loadProjectRegistry();
+        renderProjectList();
+        mainMenu.style.display = 'none';
+        gameOverMenu.style.display = 'none';
+        projectSelector.style.display = 'flex';
+      };
+
+      window.closeProjectSelection = function() {
+        projectSelector.style.display = 'none';
+        mainMenu.style.display = 'flex';
+      };
+
+      window.createNewPlaygroundProject = function() {
+        const created = createProjectSnapshot({ cloneCurrent: false });
+        activeProjectId = created.id;
+        startGame('playground');
+      };
+
+      projectListEl.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) return;
+        const id = btn.dataset.id;
+        if (btn.dataset.action === 'open') {
+          activeProjectId = id;
+          startGame('playground');
+          return;
+        }
+        if (btn.dataset.action === 'delete') {
+          playgroundProjects = playgroundProjects.filter((p) => p.id !== id);
+          persistPlaygroundProjects();
+          renderProjectList();
+        }
+      });
 
       // --- GAME SETTINGS ---
       let difficulty = 'normal';
@@ -542,7 +714,6 @@
               }
               if (e.code === 'KeyC') {
                   platforms = [];
-                  savePlaygroundCreation();
                   shockwaves.push(new Shockwave(player.x + player.size/2, player.y + player.size/2, '#ff0000'));
               }
               if (e.code === 'KeyR') {
@@ -563,7 +734,6 @@
                       shockwaves.push(new Shockwave(player.x + player.size/2, player.y + player.size/2, '#bd00ff'));
                   }
                   flightToggleText.innerText = isFlying ? 'ON' : 'OFF';
-                  savePlaygroundCreation();
               }
           }
       });
@@ -595,7 +765,6 @@
                     if (hit) shockwaves.push(new Shockwave(worldX, worldY, '#ff3333'));
                     return !hit;
                 });
-                savePlaygroundCreation();
             }
         }
         mouse.active = true;
@@ -606,7 +775,6 @@
             if (currentDragBox.w > 10 && currentDragBox.h > 10) {
                 platforms.push(new Platform(currentDragBox.x, currentDragBox.y, currentDragBox.w, currentDragBox.h));
                 shockwaves.push(new Shockwave(currentDragBox.x + currentDragBox.w/2, currentDragBox.y + currentDragBox.h/2, CONFIG.colors.playground));
-                savePlaygroundCreation();
             }
         }
         dragStart = null; currentDragBox = null; mouse.active = false;
@@ -617,7 +785,6 @@
       window.updateSimDifficulty = function(val) {
         simDifficulty = val;
         customSettingsPanel.style.display = (val === 'custom') ? 'block' : 'none';
-        savePlaygroundCreation();
         if (playgroundMode === 'play') {
             pgStatusText.innerText = `MODE: TESTING (${simDifficulty.toUpperCase()})`;
             pgStatusText.style.color = CONFIG.colors[simDifficulty];
@@ -625,10 +792,18 @@
       };
 
       // Custom Physics Listeners
-      document.getElementById('cfg-gravity').addEventListener('input', (e) => { CONFIG.gravity.custom = parseFloat(e.target.value); savePlaygroundCreation(); });
-      document.getElementById('cfg-jump').addEventListener('input', (e) => { CONFIG.jumpForce.custom = -parseFloat(e.target.value); savePlaygroundCreation(); });
-      document.getElementById('cfg-jumps-count').addEventListener('input', (e) => { CONFIG.maxJumps.custom = parseInt(e.target.value); savePlaygroundCreation(); });
-      document.getElementById('cfg-dash').addEventListener('input', (e) => { CONFIG.dashForce.custom = parseFloat(e.target.value); savePlaygroundCreation(); });
+      document.getElementById('cfg-gravity').addEventListener('input', (e) => { CONFIG.gravity.custom = parseFloat(e.target.value); });
+      document.getElementById('cfg-jump').addEventListener('input', (e) => { CONFIG.jumpForce.custom = -parseFloat(e.target.value); });
+      document.getElementById('cfg-jumps-count').addEventListener('input', (e) => { CONFIG.maxJumps.custom = parseInt(e.target.value); });
+      document.getElementById('cfg-dash').addEventListener('input', (e) => { CONFIG.dashForce.custom = parseFloat(e.target.value); });
+
+      document.getElementById('pg-save-project').addEventListener('click', () => {
+        saveToActiveProjectSnapshot();
+      });
+      document.getElementById('pg-projects-btn').addEventListener('click', () => {
+        backToMenu();
+        openPlaygroundProjects();
+      });
 
       function fillRoundedRect(x, y, w, h, r) {
         ctx.beginPath();
@@ -903,11 +1078,13 @@
             nextPlatformX = 1250; for (let i = 0; i < 20; i++) spawnPlatform();
             pgUI.style.display = 'none';
         } else {
-            const loaded = loadPlaygroundCreation();
-            if (!loaded) platforms = [];
+            loadProjectRegistry();
+            const selectedProject = playgroundProjects.find((p) => p.id === activeProjectId);
+            if (selectedProject) applyProjectPayload(selectedProject.payload);
+            else platforms = [];
             nextPlatformX = 0; pgUI.style.display = 'block';
             pgStatusText.innerText = 'MODE: EDITING'; pgStatusText.style.color = '#bd00ff';
-            savePlaygroundCreation();
+            projectSelector.style.display = 'none';
         }
         mainMenu.style.display = 'none'; gameOverMenu.style.display = 'none';
         hud.style.display = 'flex'; diffTag.style.display = 'block';
