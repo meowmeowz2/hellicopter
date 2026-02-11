@@ -44,6 +44,7 @@ const getSlotKey = (slot) => `${SAVE_KEY}-slot-${slot}`;
 function setMenuOpen(open) {
     menu.classList.toggle('hidden', !open);
     uiLayer.style.display = open ? 'none' : 'flex';
+    if (!open) resize();
     state.gameStatus = open ? 'menu' : 'playing';
     continueBtn.disabled = !state.worldInitialized;
     saveSlotButtons.forEach(btn => { btn.disabled = !state.worldInitialized; });

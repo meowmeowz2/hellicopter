@@ -102,6 +102,7 @@ export function loadFromSaveData(saveData) {
     if (!saveData) return false;
 
     resetRuntimeState();
+    resize();
     state.player = { ...state.player, ...(saveData.player || {}) };
     state.player.activeDrone = null;
     state.player.activeSeamoth = null;
