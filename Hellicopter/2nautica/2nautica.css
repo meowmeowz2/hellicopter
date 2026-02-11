@@ -96,3 +96,15 @@ canvas { display: block; }
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-thumb { background: #0ff; border-radius: 10px; }
 #drone-hud, #moth-hud { position: absolute; top: 20px; right: 250px; background: rgba(0, 50, 50, 0.8); border: 1px solid #0ff; padding: 10px; border-radius: 4px; display: none; font-family: monospace; font-size: 12px; color: #0ff; }
+
+.menu-overlay { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at center, rgba(5, 40, 70, 0.65), rgba(2, 8, 16, 0.92)); }
+.menu-overlay.hidden { display: none; }
+.menu-panel { width: min(420px, 92vw); padding: 24px; border-radius: 14px; background: rgba(8, 22, 34, 0.92); border: 1px solid rgba(0, 255, 255, 0.4); box-shadow: 0 16px 60px rgba(0, 0, 0, 0.5), inset 0 0 30px rgba(0, 255, 255, 0.08); text-align: center; color: #cff; }
+.menu-panel h1 { margin: 0; letter-spacing: 0.2em; font-size: 30px; color: #8ff; }
+.menu-panel #menu-subtitle { margin: 8px 0 18px; color: rgba(180, 235, 255, 0.8); font-size: 13px; text-transform: uppercase; letter-spacing: 0.15em; }
+.menu-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.menu-btn { padding: 10px 12px; border: 1px solid rgba(0, 255, 255, 0.45); border-radius: 10px; background: linear-gradient(135deg, rgba(0, 120, 180, 0.25), rgba(0, 255, 255, 0.12)); color: #cfffff; font-weight: 600; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease; }
+.menu-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0, 255, 255, 0.18); background: linear-gradient(135deg, rgba(0, 170, 220, 0.35), rgba(0, 255, 255, 0.2)); }
+.menu-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
+.menu-status { margin-top: 14px; font-size: 12px; min-height: 16px; color: rgba(160, 255, 210, 0.9); }
+.menu-tip { margin-top: 8px; font-size: 11px; color: rgba(150, 210, 235, 0.85); }
