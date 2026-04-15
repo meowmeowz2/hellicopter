@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>2nautica</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="./2nautica/2nautica.css">
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div id="ui-layer" class="flex flex-col justify-between p-4 text-white">
+    <div id="stats-panel" class="flex flex-col gap-2 w-64">
+        <div>
+            <div class="flex justify-between text-[10px] mb-1"><span>HEALTH</span><span id="health-val">100</span></div>
+            <div class="stat-bar"><div id="health-bar" class="stat-fill bg-red-500" style="width: 100%"></div></div>
+        </div>
+        <div>
+            <div class="flex justify-between text-[10px] mb-1"><span>HUNGER</span><span id="hunger-val">100</span></div>
+            <div class="stat-bar"><div id="hunger-bar" class="stat-fill bg-orange-400" style="width: 100%"></div></div>
+        </div>
+        <div>
+            <div class="flex justify-between text-[10px] mb-1"><span>OXYGEN</span><span id="o2-val">45s</span></div>
+            <div class="stat-bar"><div id="o2-bar" class="stat-fill bg-blue-400" style="width: 100%"></div></div>
+        </div>
+    </div>
+    <div id="drone-hud" class="pointer-events-auto">
+        <div class="mb-1 text-cyan-300 font-bold underline">DRONE CAMERA FEED</div>
+        <div id="drone-status">LINK STABLE</div>
+        <div id="drone-cargo" class="text-[10px] leading-tight mt-1 opacity-80">CARGO: EMPTY</div>
+        <button onclick="exitDroneControl()" class="mt-2 bg-red-900/60 border border-red-500 text-[10px] px-2 py-1 hover:bg-red-700 w-full">DISCONNECT (X)</button>
+    </div>
+    <div id="moth-hud" class="pointer-events-auto">
+        <div class="mb-1 text-white font-bold underline italic">SEAMOTH OS v2.1</div>
+        <div id="moth-energy">ENERGY: 100%</div>
+        <div id="moth-status">COLLECTION ACTIVE</div>
+        <button onclick="exitSeamoth()" class="mt-2 bg-red-900/60 border border-red-500 text-[10px] px-2 py-1 hover:bg-red-700 w-full">EXIT VEHICLE (E)</button>
+    </div>
+    <div id="side-gear" class="absolute left-4 top-40 flex flex-col gap-4">
+        <div class="text-[10px] text-cyan-500/50 uppercase tracking-widest font-bold mb-1">Equipment</div>
+        <div id="equipment-panel" class="flex flex-col gap-3 pointer-events-auto"></div>
+        <div class="text-[10px] text-cyan-500/50 uppercase tracking-widest font-bold mt-2">Tools</div>
+        <div id="tools-panel" class="flex flex-col gap-3 pointer-events-auto"></div>
+    </div>
+    <div id="builder-menu" class="pointer-events-auto">
+        <div class="text-[10px] text-cyan-400 font-bold mb-2 uppercase border-b border-cyan-900 pb-1">Habitat Designer</div>
+        <div id="build-options" class="flex flex-col gap-2"></div>
+        <div class="mt-4 pt-2 border-t border-cyan-900 text-[9px] text-cyan-500 italic">Right-Click placed items to deconstruct</div>
+    </div>
+    <div class="absolute bottom-4 left-4 pointer-events-auto" id="builder-toggle-container" style="display:none">
+        <div onclick="toggleBuilderMenu()" class="inventory-slot border-purple-500 bg-purple-900/40 hover:bg-purple-800/60" title="Habitat Builder">
+            <span style="color:#a0f; font-weight: bold;">HB</span>
+        </div>
+    </div>
+    <div id="msg" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-cyan-300 font-bold text-xl opacity-0 transition-opacity pointer-events-none text-center"></div>
+    <div class="flex flex-col items-center gap-4">
+        <div id="depth-indicator" class="text-2xl font-mono text-cyan-400">DEPTH: 0m</div>
+        <div class="text-[10px] text-cyan-500/50 uppercase tracking-widest">Inventory</div>
+        <div class="flex gap-2 pointer-events-auto" id="inventory"></div>
+    </div>
+    <div id="fab-panel" class="absolute right-4 top-4 w-56 pointer-events-auto bg-slate-900/90 p-4 rounded-lg border border-cyan-500/30 max-h-[70vh] overflow-y-auto">
+        <h3 class="text-cyan-400 font-bold mb-3 border-b border-cyan-500/30 pb-1">FABRICATOR</h3>
+        <div id="crafting-list" class="flex flex-col gap-2 text-sm"></div>
+    </div>
+</div>
+<script type="module" src="./2nautica/main.js"></script>
+</body>
+</html>
