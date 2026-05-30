@@ -1,14 +1,16 @@
-import { setUiHandlers, state } from './state.js';
+import { SAVE_KEY, setUiHandlers, state } from './state.js';
 import { draw } from './render.js';
 import {
     exitDroneControl,
     exitSeamoth,
+    getSaveData,
     handleCanvasMouseDown,
     handleContextMenu,
     handleKeyDown,
     handleKeyUp,
     handleMouseMove,
-    init,
+    initNewGame,
+    loadFromSaveData,
     resize,
     update
 } from './gameplay.js';
@@ -23,16 +25,105 @@ setUiHandlers({
 function gameLoop(timestamp) {
     const dt = timestamp - state.lastTime;
     state.lastTime = timestamp;
-    if (dt < 100) {
+    if (dt < 100 && state.gameStatus === 'playing' && state.worldInitialized) {
         update(dt);
         draw();
     }
     window.requestAnimationFrame(gameLoop);
 }
 
+const uiLayer = document.getElementById('ui-layer');
+const menu = document.getElementById('main-menu');
+const statusEl = document.getElementById('save-status');
+const continueBtn = document.getElementById('continue-btn');
+const saveSlotButtons = [...document.querySelectorAll('.slot-save-btn')];
+const loadSlotButtons = [...document.querySelectorAll('.slot-load-btn')];
+const deleteSlotButtons = [...document.querySelectorAll('.slot-delete-btn')];
+
+const getSlotKey = (slot) => `${SAVE_KEY}-slot-${slot}`;
+
+function setMenuOpen(open) {
+    menu.classList.toggle('hidden', !open);
+    uiLayer.style.display = open ? 'none' : 'flex';
+    if (!open) resize();
+    state.gameStatus = open ? 'menu' : 'playing';
+    continueBtn.disabled = !state.worldInitialized;
+    saveSlotButtons.forEach(btn => { btn.disabled = !state.worldInitialized; });
+    loadSlotButtons.forEach(btn => {
+        btn.disabled = !readSave(btn.dataset.slot);
+    });
+    deleteSlotButtons.forEach(btn => {
+        btn.disabled = !readSave(btn.dataset.slot);
+    });
+}
+
+function setStatus(text) {
+    statusEl.textContent = text;
+}
+
+function readSave(slot = '1') {
+    try {
+        const raw = localStorage.getItem(getSlotKey(slot));
+        return raw ? JSON.parse(raw) : null;
+    } catch {
+        return null;
+    }
+}
+
+function saveGame(slot) {
+    if (!state.worldInitialized) return;
+    try {
+        localStorage.setItem(getSlotKey(slot), JSON.stringify(getSaveData()));
+        setStatus(`Saved to slot ${slot}.`);
+        setMenuOpen(true);
+    } catch {
+        setStatus('Save failed (storage unavailable).');
+    }
+}
+
+function loadGame(slot) {
+    const saveData = readSave(slot);
+    if (!saveData) {
+        setStatus(`Slot ${slot} is empty.`);
+        return;
+    }
+
+    const ok = loadFromSaveData(saveData);
+    if (ok) {
+        setStatus(`Loaded slot ${slot}. Welcome back.`);
+        setMenuOpen(false);
+    } else {
+        setStatus(`Slot ${slot} data is invalid.`);
+    }
+}
+
+function deleteSave(slot) {
+    const saveData = readSave(slot);
+    if (!saveData) {
+        setStatus(`Slot ${slot} is already empty.`);
+        return;
+    }
+
+    localStorage.removeItem(getSlotKey(slot));
+    setStatus(`Deleted slot ${slot}.`);
+    setMenuOpen(true);
+}
+
+function startNewGame() {
+    initNewGame();
+    setStatus('New game started.');
+    setMenuOpen(false);
+}
+
 state.lastTime = 0;
 window.addEventListener('resize', resize);
-window.addEventListener('keydown', handleKeyDown);
+window.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        if (state.worldInitialized) setMenuOpen(state.gameStatus === 'playing');
+        return;
+    }
+    handleKeyDown(e);
+});
 window.addEventListener('keyup', handleKeyUp);
 window.addEventListener('mousemove', handleMouseMove);
 window.addEventListener('contextmenu', handleContextMenu);
@@ -45,6 +136,16 @@ window.exitSeamoth = exitSeamoth;
 window.toggleBuilderMenu = toggleBuilderMenu;
 
 window.addEventListener('load', () => {
-    init();
+    document.getElementById('new-game-btn').addEventListener('click', startNewGame);
+    document.getElementById('continue-btn').addEventListener('click', () => setMenuOpen(false));
+    saveSlotButtons.forEach(btn => btn.addEventListener('click', () => saveGame(btn.dataset.slot)));
+    loadSlotButtons.forEach(btn => btn.addEventListener('click', () => loadGame(btn.dataset.slot)));
+    deleteSlotButtons.forEach(btn => btn.addEventListener('click', () => deleteSave(btn.dataset.slot)));
+
+    const hasAnySave = loadSlotButtons.some(btn => !!readSave(btn.dataset.slot));
+    if (hasAnySave) setStatus('Saves detected. Choose a slot to load.');
+    else setStatus('No save loaded. Start a new dive.');
+
+    setMenuOpen(true);
     window.requestAnimationFrame(gameLoop);
 });

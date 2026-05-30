@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PolyMerge - Prestige Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #0f172a;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            touch-action: none;
+            user-select: none;
+        }
+        canvas {
+            display: block;
+        }
+        #ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 10;
+        }
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            padding: 10px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            min-width: 160px;
+        }
+        #shop-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 95%;
+            max-width: 1100px;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #shop-panel, #prestige-shop {
+            background: rgba(15, 23, 42, 0.85);
+            padding: 12px;
+            border-radius: 20px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+        #prestige-shop {
+            border-color: rgba(168, 85, 247, 0.4);
+            background: rgba(45, 20, 80, 0.8);
+            display: none;
+        }
+        .shop-button {
+            background: #1e293b;
+            color: white;
+            padding: 8px;
+            border-radius: 12px;
+            font-weight: 600;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.2s;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .shop-button:hover:not(:disabled) {
+            background: #334155;
+            transform: translateY(-2px);
+            border-color: #3b82f6;
+        }
+        .shop-button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .btn-title { font-size: 0.65rem; text-transform: uppercase; opacity: 0.8; margin-bottom: 2px; text-align: center; line-height: 1; }
+        .btn-value { font-size: 0.8rem; margin-bottom: 4px; color: #3b82f6; }
+        .btn-price { font-size: 0.8rem; font-weight: bold; color: #facc15; }
+
+        .prestige-btn { border-color: #a855f7 !important; }
+        .prestige-btn .btn-value { color: #a855f7; }
+        .prestige-btn .btn-price { color: #d8b4fe; }
+
+        #prestige-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15, 23, 42, 0.95);
+            padding: 30px;
+            border-radius: 24px;
+            border: 2px solid #a855f7;
+            color: white;
+            text-align: center;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 0 50px rgba(168, 85, 247, 0.3);
+        }
+
+        .tab-btn {
+            padding: 6px 16px;
+            border-radius: 20px 20px 0 0;
+            font-size: 0.75rem;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            transition: 0.2s;
+        }
+        .active-tab { background: rgba(15, 23, 42, 0.85); color: white; border: 1px solid rgba(255,255,255,0.1); border-bottom: none; }
+        .inactive-tab { background: rgba(0,0,0,0.3); color: rgba(255,255,255,0.5); }
+
+        @media (max-width: 768px) {
+            #shop-panel, #prestige-shop { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-overlay">
+        <div class="stat-card">
+            <div class="text-xs uppercase tracking-widest opacity-70 text-blue-400">Current Progress</div>
+            <div id="max-sides" class="text-xl font-bold">Triangle (3)</div>
+        </div>
+        <div class="stat-card">
+            <div class="text-xs uppercase tracking-widest opacity-70 text-yellow-500">Wealth</div>
+            <div id="coins" class="text-xl font-bold text-yellow-400">0</div>
+        </div>
+        <div id="prestige-card" class="stat-card" style="display: none; border-color: #a855f7;">
+            <div class="text-xs uppercase tracking-widest opacity-70 text-purple-400">Prestige Points</div>
+            <div id="prestige-points" class="text-xl font-bold text-purple-300">0</div>
+        </div>
+    </div>
+
+    <div id="prestige-modal">
+        <h2 class="text-2xl font-bold mb-2">Ascend to Prestige?</h2>
+        <p class="mb-6 opacity-80">Reset your shapes, coins, and upgrades to gain <span id="pending-pp" class="text-purple-400 font-bold">0</span> Prestige Points.<br><small>You keep your Prestige Upgrades forever!</small></p>
+        <div class="flex gap-4 justify-center">
+            <button id="confirm-prestige-btn" class="bg-purple-600 hover:bg-purple-500 px-6 py-2 rounded-xl font-bold">ASCEND</button>
+            <button id="close-prestige-btn" class="bg-slate-700 hover:bg-slate-600 px-6 py-2 rounded-xl font-bold">NOT YET</button>
+        </div>
+    </div>
+
+    <div id="shop-container">
+        <div class="flex gap-2 ml-4">
+            <button id="tab-main" class="tab-btn active-tab">Main Shop</button>
+            <button id="tab-prestige" class="tab-btn inactive-tab">Prestige Shop</button>
+            <button id="ascend-trigger" class="tab-btn bg-purple-900 text-purple-200 border border-purple-500 ml-auto hidden">ASCEND! (+0 PP)</button>
+        </div>
+
+        <div id="shop-panel">
+            <button id="buy-worker" class="shop-button">
+                <span class="btn-title">Hire Worker</span>
+                <span id="worker-count-ui" class="btn-value">0 Active</span>
+                <span class="btn-price">🪙 <span id="worker-cost">10</span></span>
+            </button>
+            <button id="buy-speed" class="shop-button">
+                <span class="btn-title">Spawn Speed</span>
+                <span id="speed-value-ui" class="btn-value">2.0s</span>
+                <span class="btn-price">🪙 <span id="speed-cost">15</span></span>
+            </button>
+            <button id="buy-cap" class="shop-button">
+                <span class="btn-title">Spawn Cap</span>
+                <span id="cap-value-ui" class="btn-value">10 / 25</span>
+                <span class="btn-price">🪙 <span id="cap-cost">50</span></span>
+            </button>
+            <button id="buy-tier" class="shop-button">
+                <span class="btn-title">Spawn Tier</span>
+                <span id="tier-value-ui" class="btn-value">Lvl 3 Only</span>
+                <span class="btn-price">🪙 <span id="tier-cost">100</span></span>
+            </button>
+            <button id="buy-multi" class="shop-button">
+                <span class="btn-title">Coin Multi</span>
+                <span id="multi-value-ui" class="btn-value">1.0x</span>
+                <span class="btn-price">🪙 <span id="multi-cost">75</span></span>
+            </button>
+            <button id="buy-worker-skill" class="shop-button">
+                <span class="btn-title">Worker Skill</span>
+                <span id="skill-value-ui" class="btn-value">0% Pro</span>
+                <span class="btn-price">🪙 <span id="skill-cost">250</span></span>
+            </button>
+            <button id="buy-merge-range" class="shop-button">
+                <span class="btn-title">Merge Magnet</span>
+                <span id="range-value-ui" class="btn-value">+0 Range</span>
+                <span class="btn-price">🪙 <span id="range-cost">150</span></span>
+            </button>
+            <button id="buy-bonus-value" class="shop-button">
+                <span class="btn-title">Shape Value</span>
+                <span id="value-value-ui" class="btn-value">+0 Bonus</span>
+                <span class="btn-price">🪙 <span id="value-cost">300</span></span>
+            </button>
+        </div>
+
+        <div id="prestige-shop">
+            <button id="p-buy-base-cap" class="shop-button prestige-btn">
+                <span class="btn-title">Global Cap</span>
+                <span id="p-cap-value" class="btn-value">+0 Extra</span>
+                <span class="btn-price">✨ <span id="p-cap-cost">1</span></span>
+            </button>
+            <button id="p-buy-start-tier" class="shop-button prestige-btn">
+                <span class="btn-title">Start Tier</span>
+                <span id="p-tier-value" class="btn-value">Start Lvl 3</span>
+                <span class="btn-price">✨ <span id="p-tier-cost">2</span></span>
+            </button>
+            <button id="p-buy-passive" class="shop-button prestige-btn">
+                <span class="btn-title">Passive Income</span>
+                <span id="p-passive-value" class="btn-value">0 / sec</span>
+                <span class="btn-price">✨ <span id="p-passive-cost">1</span></span>
+            </button>
+            <button id="p-buy-merger" class="shop-button prestige-btn">
+                <span class="btn-title">Mega Multi</span>
+                <span id="p-multi-value" class="btn-value">1x Global</span>
+                <span class="btn-price">✨ <span id="p-multi-cost">5</span></span>
+            </button>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let shapes = [];
+        let workers = [];
+        let draggingShape = null;
+        let offset = { x: 0, y: 0 };
+
+        let coins = 0;
+        let prestigePoints = 0;
+        let maxSides = 3;
+
+        let lastSpawnTime = 0;
+        let lastPassiveTime = 0;
+
+        let workerCost, spawnIntervalTime, speedCost, baseSpawnCap, capCost, maxSpawnTier, tierCost, coinMultiplier, multiCost;
+        let proWorkerChance, skillCost, mergeRangeBonus, rangeCost, flatValueBonus, valueCost;
+
+        let pExtraCap = 0;
+        let pExtraCapCost = 1;
+        let pStartTier = 3;
+        let pStartTierCost = 2;
+        let pPassiveIncome = 0;
+        let pPassiveCost = 1;
+        let pGlobalMulti = 1;
+        let pGlobalMultiCost = 5;
+
+        const MAX_TOTAL_CAP = 25;
+
+        function resetGame(isInitial = false) {
+            shapes = [];
+            workers = [];
+            coins = 0;
+            maxSides = pStartTier;
+
+            workerCost = 10;
+            spawnIntervalTime = 2000;
+            speedCost = 15;
+            baseSpawnCap = 10;
+            capCost = 50;
+            maxSpawnTier = pStartTier;
+            tierCost = 100;
+            coinMultiplier = 1.0;
+            multiCost = 75;
+
+            proWorkerChance = 0;
+            skillCost = 250;
+            mergeRangeBonus = 0;
+            rangeCost = 150;
+            flatValueBonus = 0;
+            valueCost = 300;
+
+            lastSpawnTime = performance.now();
+
+            if (!isInitial) {
+                for (let i = 0; i < 6; i++) spawnShape(pStartTier);
+            }
+            updateUI();
+        }
+
+        const COLORS = [
+            '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16',
+            '#22c55e', '#10b981', '#06b6d4', '#0ea5e9', '#3b82f6',
+            '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899'
+        ];
+
+        class Shape {
+            constructor(x, y, sides) {
+                this.x = x; this.y = y; this.sides = sides;
+                this.radius = 28 + (sides * 1.2);
+                this.angle = Math.random() * Math.PI * 2;
+                this.color = COLORS[(sides - 3) % COLORS.length] || '#ffffff';
+                this.targetScale = 1;
+                this.currentScale = 0;
+                this.vx = (Math.random() - 0.5) * 1.5;
+                this.vy = (Math.random() - 0.5) * 1.5;
+                this.isBeingTargeted = false;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                ctx.scale(this.currentScale, this.currentScale);
+                ctx.shadowBlur = 12; ctx.shadowColor = this.color;
+                ctx.beginPath();
+                for (let i = 0; i < this.sides; i++) {
+                    const theta = (i / this.sides) * Math.PI * 2;
+                    const px = Math.cos(theta) * this.radius;
+                    const py = Math.sin(theta) * this.radius;
+                    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+                ctx.fillStyle = this.color; ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2; ctx.stroke();
+                ctx.rotate(-this.angle);
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = 'white';
+                ctx.font = `bold ${Math.min(14, this.radius / 2)}px Inter`;
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(this.sides, 0, 0);
+                ctx.restore();
+            }
+
+            update() {
+                this.currentScale += (this.targetScale - this.currentScale) * 0.1;
+                const managed = (this === draggingShape) || workers.some(w => w.targetA === this || w.targetB === this);
+                if (!managed) {
+                    this.x += this.vx; this.y += this.vy; this.angle += 0.005;
+                    if (this.x < this.radius || this.x > width - this.radius) this.vx *= -1;
+                    if (this.y < this.radius || this.y > height - this.radius) this.vy *= -1;
+                    this.x = Math.max(this.radius, Math.min(width - this.radius, this.x));
+                    this.y = Math.max(this.radius, Math.min(height - this.radius, this.y));
+                }
+            }
+
+            contains(px, py) {
+                const dx = px - this.x; const dy = py - this.y;
+                return Math.sqrt(dx * dx + dy * dy) < this.radius;
+            }
+        }
+
+        class Worker {
+            constructor(isPro = false) {
+                this.x = width / 2; this.y = height / 2;
+                this.targetA = null; this.targetB = null;
+                this.isPro = isPro;
+                this.speed = isPro ? 7.0 : 3.5;
+                this.state = 'searching';
+            }
+            update() {
+                if (this.state === 'searching') {
+                    for (let i = 0; i < shapes.length; i++) {
+                        for (let j = i + 1; j < shapes.length; j++) {
+                            const s1 = shapes[i]; const s2 = shapes[j];
+                            if (s1.sides === s2.sides && !s1.isBeingTargeted && !s2.isBeingTargeted && s1 !== draggingShape && s2 !== draggingShape) {
+                                this.targetA = s1; this.targetB = s2;
+                                s1.isBeingTargeted = true; s2.isBeingTargeted = true;
+                                this.state = 'movingToA'; return;
+                            }
+                        }
+                    }
+                    this.x += Math.sin(Date.now() / 800) * 1.5;
+                    this.y += Math.cos(Date.now() / 400) * 0.8;
+                } else if (this.state === 'movingToA') {
+                    if (!shapes.includes(this.targetA) || !shapes.includes(this.targetB)) { this.reset(); return; }
+                    this.moveTowards(this.targetA);
+                    if (this.isAt(this.targetA)) this.state = 'carryingToB';
+                } else if (this.state === 'carryingToB') {
+                    if (!shapes.includes(this.targetA) || !shapes.includes(this.targetB)) { this.reset(); return; }
+                    this.targetA.x = this.x; this.targetA.y = this.y;
+                    this.moveTowards(this.targetB);
+                    if (this.isAt(this.targetB)) { checkMerge(this.targetA, this.targetB); this.reset(); }
+                }
+            }
+            moveTowards(target) {
+                const dx = target.x - this.x; const dy = target.y - this.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > this.speed) { this.x += (dx / dist) * this.speed; this.y += (dy / dist) * this.speed; }
+            }
+            isAt(target) { return Math.sqrt((target.x - this.x) ** 2 + (target.y - this.y) ** 2) < 10; }
+            reset() {
+                if (this.targetA) this.targetA.isBeingTargeted = false;
+                if (this.targetB) this.targetB.isBeingTargeted = false;
+                this.targetA = null; this.targetB = null; this.state = 'searching';
+            }
+            draw() {
+                ctx.save(); ctx.translate(this.x, this.y); ctx.beginPath();
+                ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fillStyle = this.isPro ? '#facc15' : '#f8fafc'; ctx.fill();
+                ctx.strokeStyle = this.isPro ? '#ea580c' : '#3b82f6'; ctx.lineWidth = 2; ctx.stroke();
+                if (this.isPro) { ctx.fillStyle = '#ea580c'; ctx.font = 'bold 8px Arial'; ctx.textAlign = 'center'; ctx.fillText('⚡', 0, 3); }
+                ctx.restore();
+            }
+        }
+
+        function getShapeName(n) {
+            const names = { 3: 'Triangle', 4: 'Square', 5: 'Pentagon', 6: 'Hexagon', 7: 'Heptagon', 8: 'Octagon', 9: 'Nonagon', 10: 'Decagon', 11: 'Hendecagon', 12: 'Dodecagon', 13: 'Tridecagon', 14: 'Tetradecagon', 15: 'Pentadecagon' };
+            return names[n] || `${n}-gon`;
+        }
+
+        function spawnShape(sides) {
+            const margin = 80;
+            const x = margin + Math.random() * (width - margin * 2);
+            const y = margin + Math.random() * (height - margin * 2);
+            shapes.push(new Shape(x, y, sides));
+        }
+
+        function checkMerge(s1, specificS2 = null) {
+            const targets = specificS2 ? [specificS2] : shapes;
+            for (let i = targets.length - 1; i >= 0; i--) {
+                const s2 = targets[i];
+                if (s1 === s2) continue;
+                const dx = s1.x - s2.x; const dy = s1.y - s2.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < (s1.radius + s2.radius + mergeRangeBonus) && s1.sides === s2.sides) {
+                    const newSides = s1.sides + 1;
+                    const nx = (s1.x + s2.x) / 2; const ny = (s1.y + s2.y) / 2;
+                    shapes = shapes.filter(s => s !== s1 && s !== s2);
+                    shapes.push(new Shape(nx, ny, newSides));
+                    coins += Math.ceil((s1.sides + flatValueBonus) * coinMultiplier * pGlobalMulti);
+                    if (newSides > maxSides) maxSides = newSides;
+                    updateUI();
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function formatCoins(n) {
+            if (n >= 1e15) return (n / 1e15).toFixed(2) + 'Q';
+            if (n >= 1e12) return (n / 1e12).toFixed(2) + 'T';
+            if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+            if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+            return Math.floor(n).toLocaleString();
+        }
+
+        function calculatePP() {
+            if (maxSides < 15) return 0;
+            return Math.floor(Math.pow(maxSides - 14, 1.5) + (Math.log10(coins + 1) / 2));
+        }
+
+        function updateUI() {
+            document.getElementById('coins').innerText = formatCoins(coins);
+            document.getElementById('max-sides').innerText = `${getShapeName(maxSides)} (${maxSides})`;
+            document.getElementById('prestige-points').innerText = prestigePoints;
+
+            document.getElementById('worker-count-ui').innerText = `${workers.length} Active`;
+            document.getElementById('worker-cost').innerText = formatCoins(workerCost);
+            document.getElementById('buy-worker').disabled = coins < workerCost;
+
+            document.getElementById('speed-value-ui').innerText = `${(spawnIntervalTime / 1000).toFixed(1)}s`;
+            document.getElementById('speed-cost').innerText = formatCoins(speedCost);
+            document.getElementById('buy-speed').disabled = coins < speedCost || spawnIntervalTime <= 100;
+
+            const currentCapLimit = baseSpawnCap + pExtraCap;
+            document.getElementById('cap-value-ui').innerText = `${currentCapLimit} / ${MAX_TOTAL_CAP}`;
+            document.getElementById('cap-cost').innerText = formatCoins(capCost);
+            document.getElementById('buy-cap').disabled = coins < capCost || currentCapLimit >= MAX_TOTAL_CAP;
+
+            document.getElementById('tier-value-ui').innerText = maxSpawnTier === pStartTier ? `Lvl ${pStartTier} Only` : `Up to Lvl ${maxSpawnTier}`;
+            document.getElementById('tier-cost').innerText = formatCoins(tierCost);
+            document.getElementById('buy-tier').disabled = coins < tierCost;
+
+            document.getElementById('multi-value-ui').innerText = `${coinMultiplier.toFixed(1)}x`;
+            document.getElementById('multi-cost').innerText = formatCoins(multiCost);
+            document.getElementById('buy-multi').disabled = coins < multiCost;
+
+            document.getElementById('skill-value-ui').innerText = `${Math.round(proWorkerChance * 100)}% Pro`;
+            document.getElementById('skill-cost').innerText = formatCoins(skillCost);
+            document.getElementById('buy-worker-skill').disabled = coins < skillCost || proWorkerChance >= 1.0;
+
+            document.getElementById('range-value-ui').innerText = `+${mergeRangeBonus} Range`;
+            document.getElementById('range-cost').innerText = formatCoins(rangeCost);
+            document.getElementById('buy-merge-range').disabled = coins < rangeCost;
+
+            document.getElementById('value-value-ui').innerText = `+${flatValueBonus} Bonus`;
+            document.getElementById('value-cost').innerText = formatCoins(valueCost);
+            document.getElementById('buy-bonus-value').disabled = coins < valueCost;
+
+            const ppGain = calculatePP();
+            const ascendTrigger = document.getElementById('ascend-trigger');
+            if (maxSides >= 15) {
+                ascendTrigger.classList.remove('hidden');
+                ascendTrigger.innerText = `ASCEND! (+${ppGain} PP)`;
+            } else {
+                ascendTrigger.classList.add('hidden');
+            }
+
+            document.getElementById('p-cap-value').innerText = `+${pExtraCap} Extra`;
+            document.getElementById('p-cap-cost').innerText = pExtraCapCost;
+            document.getElementById('p-buy-base-cap').disabled = prestigePoints < pExtraCapCost || (baseSpawnCap + pExtraCap) >= MAX_TOTAL_CAP;
+
+            document.getElementById('p-tier-value').innerText = `Start Lvl ${pStartTier}`;
+            document.getElementById('p-tier-cost').innerText = pStartTierCost;
+            document.getElementById('p-buy-start-tier').disabled = prestigePoints < pStartTierCost;
+
+            document.getElementById('p-passive-value').innerText = `${formatCoins(pPassiveIncome)} / sec`;
+            document.getElementById('p-passive-cost').innerText = pPassiveCost;
+            document.getElementById('p-buy-passive').disabled = prestigePoints < pPassiveCost;
+
+            document.getElementById('p-multi-value').innerText = `${pGlobalMulti}x Global`;
+            document.getElementById('p-multi-cost').innerText = pGlobalMultiCost;
+            document.getElementById('p-buy-merger').disabled = prestigePoints < pGlobalMultiCost;
+        }
+
+        document.getElementById('tab-main').onclick = () => showTab('main');
+        document.getElementById('tab-prestige').onclick = () => showTab('prestige');
+        function showTab(tab) {
+            document.getElementById('shop-panel').style.display = tab === 'main' ? 'grid' : 'none';
+            document.getElementById('prestige-shop').style.display = tab === 'prestige' ? 'grid' : 'none';
+            document.getElementById('tab-main').className = `tab-btn ${tab === 'main' ? 'active-tab' : 'inactive-tab'}`;
+            document.getElementById('tab-prestige').className = `tab-btn ${tab === 'prestige' ? 'active-tab' : 'inactive-tab'}`;
+        }
+
+        document.getElementById('ascend-trigger').onclick = () => {
+            document.getElementById('pending-pp').innerText = calculatePP();
+            document.getElementById('prestige-modal').style.display = 'block';
+        };
+
+        document.getElementById('close-prestige-btn').onclick = () => {
+            document.getElementById('prestige-modal').style.display = 'none';
+        };
+
+        document.getElementById('confirm-prestige-btn').onclick = () => {
+            prestigePoints += calculatePP();
+            document.getElementById('prestige-card').style.display = 'block';
+            resetGame();
+            document.getElementById('prestige-modal').style.display = 'none';
+        };
+
+        document.getElementById('buy-worker').onclick = () => { if (coins >= workerCost) { coins -= workerCost; workers.push(new Worker(Math.random() < proWorkerChance)); workerCost = Math.floor(workerCost * 1.5); updateUI(); } };
+        document.getElementById('buy-speed').onclick = () => { if (coins >= speedCost && spawnIntervalTime > 100) { coins -= speedCost; spawnIntervalTime = Math.max(100, spawnIntervalTime - 150); speedCost = Math.floor(speedCost * 1.4); updateUI(); } };
+        document.getElementById('buy-cap').onclick = () => { if (coins >= capCost && (baseSpawnCap + pExtraCap) < MAX_TOTAL_CAP) { coins -= capCost; baseSpawnCap = Math.min(MAX_TOTAL_CAP - pExtraCap, baseSpawnCap + 3); capCost = Math.floor(capCost * 2.1); updateUI(); } };
+        document.getElementById('buy-tier').onclick = () => { if (coins >= tierCost) { coins -= tierCost; maxSpawnTier++; tierCost = Math.floor(tierCost * 3.5); updateUI(); } };
+        document.getElementById('buy-multi').onclick = () => { if (coins >= multiCost) { coins -= multiCost; coinMultiplier += 0.2; multiCost = Math.floor(multiCost * 2.4); updateUI(); } };
+        document.getElementById('buy-worker-skill').onclick = () => { if (coins >= skillCost && proWorkerChance < 1.0) { coins -= skillCost; proWorkerChance = Math.min(1.0, proWorkerChance + 0.1); skillCost = Math.floor(skillCost * 2.5); updateUI(); } };
+        document.getElementById('buy-merge-range').onclick = () => { if (coins >= rangeCost) { coins -= rangeCost; mergeRangeBonus += 10; rangeCost = Math.floor(rangeCost * 1.8); updateUI(); } };
+        document.getElementById('buy-bonus-value').onclick = () => { if (coins >= valueCost) { coins -= valueCost; flatValueBonus += 1; valueCost = Math.floor(valueCost * 2.2); updateUI(); } };
+
+        document.getElementById('p-buy-base-cap').onclick = () => { if (prestigePoints >= pExtraCapCost && (baseSpawnCap + pExtraCap) < MAX_TOTAL_CAP) { prestigePoints -= pExtraCapCost; pExtraCap += 1; pExtraCapCost *= 2; updateUI(); } };
+        document.getElementById('p-buy-start-tier').onclick = () => { if (prestigePoints >= pStartTierCost) { prestigePoints -= pStartTierCost; pStartTier += 1; pStartTierCost *= 3; updateUI(); } };
+        document.getElementById('p-buy-passive').onclick = () => { if (prestigePoints >= pPassiveCost) { prestigePoints -= pPassiveCost; pPassiveIncome = pPassiveIncome === 0 ? 1 : pPassiveIncome * 5; pPassiveCost += 1; updateUI(); } };
+        document.getElementById('p-buy-merger').onclick = () => { if (prestigePoints >= pGlobalMultiCost) { prestigePoints -= pGlobalMultiCost; pGlobalMulti += 1; pGlobalMultiCost += 5; updateUI(); } };
+
+        function handleStart(e) {
+            const pos = e.touches ? e.touches[0] : e;
+            for (let i = shapes.length - 1; i >= 0; i--) {
+                if (shapes[i].contains(pos.clientX, pos.clientY) && !shapes[i].isBeingTargeted) {
+                    draggingShape = shapes[i];
+                    offset.x = pos.clientX - draggingShape.x;
+                    offset.y = pos.clientY - draggingShape.y;
+                    draggingShape.targetScale = 1.2;
+                    break;
+                }
+            }
+        }
+
+        function handleMove(e) {
+            const pos = e.touches ? e.touches[0] : e;
+            if (draggingShape) {
+                draggingShape.x = pos.clientX - offset.x;
+                draggingShape.y = pos.clientY - offset.y;
+            }
+        }
+
+        function handleEnd() {
+            if (draggingShape) {
+                draggingShape.targetScale = 1.0;
+                checkMerge(draggingShape);
+                draggingShape = null;
+            }
+        }
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+
+        function animate(timestamp) {
+            ctx.clearRect(0, 0, width, height);
+
+            if (timestamp - lastPassiveTime > 1000) {
+                if (pPassiveIncome > 0) {
+                    coins += pPassiveIncome;
+                    updateUI();
+                }
+                lastPassiveTime = timestamp;
+            }
+
+            if (timestamp - lastSpawnTime > spawnIntervalTime) {
+                const currentCapLimit = baseSpawnCap + pExtraCap;
+                if (shapes.length < currentCapLimit) {
+                    let sidesToSpawn = pStartTier;
+                    if (maxSpawnTier > pStartTier) {
+                        const roll = Math.random();
+                        if (roll > 0.5) sidesToSpawn = pStartTier + Math.floor(Math.random() * (maxSpawnTier - (pStartTier - 1)));
+                    }
+                    spawnShape(sidesToSpawn);
+                }
+                lastSpawnTime = timestamp;
+            }
+
+            if (draggingShape) {
+                shapes.forEach(s => {
+                    if (s !== draggingShape && s.sides === draggingShape.sides) {
+                        ctx.beginPath();
+                        ctx.setLineDash([5, 5]);
+                        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+                        ctx.moveTo(draggingShape.x, draggingShape.y);
+                        ctx.lineTo(s.x, s.y);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    }
+                });
+            }
+
+            shapes.forEach(shape => { shape.update(); shape.draw(); });
+            workers.forEach(worker => { worker.update(); worker.draw(); });
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('resize', resize);
+        window.addEventListener('mousedown', handleStart);
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('mouseup', handleEnd);
+        window.addEventListener('touchstart', handleStart);
+        window.addEventListener('touchmove', handleMove);
+        window.addEventListener('touchend', handleEnd);
+
+        window.onload = () => {
+            resize();
+            resetGame(true);
+            for (let i = 0; i < 6; i++) spawnShape(3);
+            requestAnimationFrame(animate);
+        };
+    </script>
+</body>
+</html>

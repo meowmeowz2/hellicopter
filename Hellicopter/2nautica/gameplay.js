@@ -1,7 +1,39 @@
-import { canvas, lightCanvas, state } from './state.js';
+import { applyGearEffects, canvas, lightCanvas, state } from './state.js';
 import { renderBuildMenu, renderCrafting, showMsg, updateInventoryUI, updateUI } from './ui.js';
 
-export function init() {
+function resetRuntimeState() {
+    state.player = {
+        x: 0, y: -100, vx: 0, vy: 0, width: 20, height: 40, rotation: 0,
+        baseSpeed: 0.15, speed: 0.15, friction: 0.94,
+        health: 100, hunger: 100,
+        o2: 45, maxO2: 45, depth: 0, legPhase: 0, equipped: null,
+        isInside: false, isInObservation: false,
+        activeDrone: null, activeSeamoth: null
+    };
+    state.camera = { x: 0, y: 0 };
+    state.mouse = { x: 0, y: 0, worldX: 0, worldY: 0 };
+    state.inventory = {};
+    state.equipment = { tank: null, fins: null };
+    state.resources = [];
+    state.fish = [];
+    state.stalkers = [];
+    state.baseParts = [];
+    state.drones = [];
+    state.seamoths = [];
+    state.terrainPoints = [];
+    state.activeBuilding = null;
+    state.dayTime = 0.5;
+    state.keys = {};
+    state.blueprints.forEach(bp => {
+        bp.crafted = false;
+    });
+    document.getElementById('builder-toggle-container').style.display = 'none';
+    document.getElementById('drone-hud').style.display = 'none';
+    document.getElementById('moth-hud').style.display = 'none';
+}
+
+export function initNewGame() {
+    resetRuntimeState();
     resize();
     for (let x = -state.worldSize.width / 2; x <= state.worldSize.width / 2; x += 60) {
         let y = state.worldSize.height - 400 + Math.sin(x * 0.001) * 300 + Math.sin(x * 0.005) * 60;
@@ -33,7 +65,82 @@ export function init() {
     }
     renderCrafting();
     renderBuildMenu();
+    applyGearEffects();
     updateInventoryUI();
+    updateUI();
+    state.worldInitialized = true;
+}
+
+export function getSaveData() {
+    const blueprintState = {};
+    state.blueprints.forEach(bp => {
+        blueprintState[bp.id] = !!bp.crafted;
+    });
+
+    return {
+        player: {
+            ...state.player,
+            activeDrone: null,
+            activeSeamoth: null
+        },
+        camera: { ...state.camera },
+        inventory: { ...state.inventory },
+        equipment: { ...state.equipment },
+        resources: state.resources,
+        terrainPoints: state.terrainPoints,
+        fish: state.fish,
+        stalkers: state.stalkers,
+        baseParts: state.baseParts,
+        drones: state.drones,
+        seamoths: state.seamoths,
+        dayTime: state.dayTime,
+        blueprints: blueprintState
+    };
+}
+
+export function loadFromSaveData(saveData) {
+    if (!saveData) return false;
+
+    resetRuntimeState();
+    resize();
+    state.player = { ...state.player, ...(saveData.player || {}) };
+    state.player.activeDrone = null;
+    state.player.activeSeamoth = null;
+    state.camera = { ...state.camera, ...(saveData.camera || {}) };
+    state.inventory = { ...(saveData.inventory || {}) };
+    state.equipment = { ...state.equipment, ...(saveData.equipment || {}) };
+    state.resources = Array.isArray(saveData.resources) ? saveData.resources : [];
+    state.terrainPoints = Array.isArray(saveData.terrainPoints) && saveData.terrainPoints.length > 1 ? saveData.terrainPoints : [];
+    state.fish = Array.isArray(saveData.fish) ? saveData.fish : [];
+    state.stalkers = Array.isArray(saveData.stalkers) ? saveData.stalkers : [];
+    state.baseParts = Array.isArray(saveData.baseParts) ? saveData.baseParts : [];
+    state.drones = Array.isArray(saveData.drones) ? saveData.drones : [];
+    state.seamoths = Array.isArray(saveData.seamoths) ? saveData.seamoths : [];
+    state.dayTime = typeof saveData.dayTime === 'number' ? saveData.dayTime : 0.5;
+
+    if (state.terrainPoints.length < 2) {
+        for (let x = -state.worldSize.width / 2; x <= state.worldSize.width / 2; x += 60) {
+            let y = state.worldSize.height - 400 + Math.sin(x * 0.001) * 300 + Math.sin(x * 0.005) * 60;
+            state.terrainPoints.push({ x, y });
+        }
+    }
+
+    const savedBlueprints = saveData.blueprints || {};
+    state.blueprints.forEach(bp => {
+        bp.crafted = !!savedBlueprints[bp.id];
+    });
+
+    if (state.inventory['Habitat Builder']) {
+        document.getElementById('builder-toggle-container').style.display = 'block';
+    }
+
+    applyGearEffects();
+    renderCrafting();
+    renderBuildMenu();
+    updateInventoryUI();
+    updateUI();
+    state.worldInitialized = true;
+    return true;
 }
 
 export function resize() {
@@ -44,12 +151,14 @@ export function resize() {
 }
 
 export function handleKeyDown(e) {
+    if (state.gameStatus !== 'playing') return;
     state.keys[e.key.toLowerCase()] = true;
     if (e.key.toLowerCase() === 'x' && state.player.activeDrone) exitDroneControl();
     if (e.key.toLowerCase() === 'e' && state.player.activeSeamoth) exitSeamoth();
 }
 
 export function handleKeyUp(e) {
+    if (state.gameStatus !== 'playing') return;
     state.keys[e.key.toLowerCase()] = false;
 }
 
@@ -91,6 +200,7 @@ export function exitSeamoth() {
 }
 
 export function handleCanvasMouseDown(e) {
+    if (state.gameStatus !== 'playing') return;
     const isRightClick = e.button === 2;
     if (!state.player.activeDrone && !state.player.activeSeamoth) {
         for (let moth of state.seamoths) {

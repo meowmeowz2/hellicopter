@@ -16,6 +16,8 @@ export const setUiHandlers = (handlers) => {
 };
 
 export const state = {
+    gameStatus: 'menu',
+    worldInitialized: false,
     player: {
         x: 0, y: -100, vx: 0, vy: 0, width: 20, height: 40, rotation: 0,
         baseSpeed: 0.15, speed: 0.15, friction: 0.94,
@@ -96,6 +98,8 @@ export const state = {
         { name: 'Foundation', cost: { 'Titanium': 4, 'Lead': 2 }, width: 280, height: 25, type: 'structure' }
     ]
 };
+
+export const SAVE_KEY = '2nautica-save-v1';
 
 export function applyGearEffects() {
     const p = state.player;
